@@ -9,7 +9,10 @@ export const fetchJson = async <T>(
 ): Promise<T> => {
   const response = await fetch(url, {
     signal,
-    headers: { Accept: 'application/json', 'User-Agent': 'signal-news-aggregator/1.0' },
+    headers: {
+      Accept: 'application/json',
+      'User-Agent': 'signal-news-aggregator/1.0',
+    },
   });
 
   if (!response.ok) {

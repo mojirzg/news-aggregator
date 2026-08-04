@@ -14,5 +14,7 @@ test('saves preferences and restores them after reload', async ({ page }) => {
   await expect(page.getByLabel('Preferred authors')).toHaveValue('Priya');
 
   await page.getByRole('link', { name: 'For You' }).click();
-  await expect(page.getByRole('heading', { name: /A new telescope pipeline/i })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: /A new telescope pipeline/i }),
+  ).toBeVisible();
 });

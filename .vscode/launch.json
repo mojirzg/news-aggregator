@@ -8,10 +8,7 @@
       "name": "Debug Backend (TypeScript)",
 
       "runtimeExecutable": "node",
-      "runtimeArgs": [
-        "--import",
-        "tsx"
-      ],
+      "runtimeArgs": ["--import", "tsx"],
 
       "program": "${workspaceFolder}/src/server/index.ts",
       "cwd": "${workspaceFolder}",
@@ -58,10 +55,7 @@
   "compounds": [
     {
       "name": "Debug Full Stack",
-      "configurations": [
-        "Debug Backend (TypeScript)",
-        "Run Frontend"
-      ]
+      "configurations": ["Debug Backend (TypeScript)", "Run Frontend"]
     }
   ]
 }

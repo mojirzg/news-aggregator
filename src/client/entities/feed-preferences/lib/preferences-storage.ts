@@ -1,5 +1,8 @@
 import { defaultPreferences } from './default-preferences';
-import { feedPreferencesSchema, type FeedPreferences } from './preferences-schema';
+import {
+  feedPreferencesSchema,
+  type FeedPreferences,
+} from './preferences-schema';
 
 const storageKey = 'signal-news:feed-preferences';
 const changeEvent = 'signal-news:preferences-changed';
@@ -40,5 +43,9 @@ export const subscribeToPreferences = (listener: () => void): (() => void) => {
   };
 };
 
-export const hasConfiguredPreferences = (preferences: FeedPreferences): boolean =>
-  preferences.sourceIds.length > 0 || preferences.categories.length > 0 || preferences.authors.length > 0;
+export const hasConfiguredPreferences = (
+  preferences: FeedPreferences,
+): boolean =>
+  preferences.sourceIds.length > 0 ||
+  preferences.categories.length > 0 ||
+  preferences.authors.length > 0;

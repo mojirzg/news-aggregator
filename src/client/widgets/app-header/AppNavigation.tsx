@@ -15,7 +15,9 @@ export const AppNavigation = () => (
         key={item.to}
         to={item.to}
         end={item.end}
-        className={({ isActive }) => `${styles.link} ${isActive ? styles.active : ''}`}
+        className={({ isActive }) =>
+          `${styles.link} ${isActive ? styles.active : ''}`
+        }
       >
         {item.label}
       </NavLink>

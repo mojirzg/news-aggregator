@@ -10,7 +10,11 @@ export const PreferencesPage = () => {
         <header className={styles.header}>
           <span className={styles.eyebrow}>Local, versioned preferences</span>
           <h1 className={styles.title}>Customize your feed</h1>
-          <p className={styles.subtitle}>Preferences are validated at runtime and stored in the browser. No authentication or server-side profile is required for this assessment.</p>
+          <p className={styles.subtitle}>
+            Preferences are validated at runtime and stored in the browser. No
+            authentication or server-side profile is required for this
+            assessment.
+          </p>
         </header>
         <PreferencesForm initial={preferences} onSave={save} onReset={clear} />
       </div>

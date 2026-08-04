@@ -3,5 +3,7 @@ import { FiltersPanel } from './FiltersPanel';
 import styles from './FiltersPanel.module.css';
 
 export const DesktopFilters = (props: ComponentProps<typeof FiltersPanel>) => (
-  <aside className={styles.desktop} aria-label="Article filters"><FiltersPanel {...props} /></aside>
+  <aside className={styles.desktop} aria-label="Article filters">
+    <FiltersPanel {...props} />
+  </aside>
 );

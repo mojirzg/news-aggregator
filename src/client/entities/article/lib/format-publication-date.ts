@@ -11,7 +11,8 @@ export const formatPublicationDate = (isoDate: string): string => {
     ['minute', 60],
   ];
   for (const [unit, seconds] of units) {
-    if (Math.abs(differenceSeconds) >= seconds) return rtf.format(Math.round(differenceSeconds / seconds), unit);
+    if (Math.abs(differenceSeconds) >= seconds)
+      return rtf.format(Math.round(differenceSeconds / seconds), unit);
   }
   return 'just now';
 };

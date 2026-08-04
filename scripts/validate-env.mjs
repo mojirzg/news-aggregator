@@ -6,7 +6,9 @@ const keys = {
 };
 
 if (mode === 'live') {
-  const missing = Object.entries(keys).filter(([, value]) => !value).map(([key]) => key);
+  const missing = Object.entries(keys)
+    .filter(([, value]) => !value)
+    .map(([key]) => key);
   if (missing.length > 0) {
     console.error(`Missing live provider credentials: ${missing.join(', ')}`);
     process.exit(1);

@@ -10,7 +10,16 @@ export const NotFoundPage = () => {
       <EmptyState
         title="Page not found"
         description="The route does not exist or was moved."
-        action={<Button type="button" onClick={() => { void navigate(routes.news); }}>Back to news</Button>}
+        action={
+          <Button
+            type="button"
+            onClick={() => {
+              void navigate(routes.news);
+            }}
+          >
+            Back to news
+          </Button>
+        }
       />
     </main>
   );

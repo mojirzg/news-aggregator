@@ -24,10 +24,17 @@ export const Drawer = ({ open, title, onClose, children }: DrawerProps) => {
   useEffect(() => {
     if (!open) return undefined;
 
-    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
     const dialog = dialogRef.current;
-    const focusable = () => [...(dialog?.querySelectorAll<HTMLElement>(focusableSelector) ?? [])];
-    const animationFrame = window.requestAnimationFrame(() => focusable()[0]?.focus());
+    const focusable = () => [
+      ...(dialog?.querySelectorAll<HTMLElement>(focusableSelector) ?? []),
+    ];
+    const animationFrame = window.requestAnimationFrame(() =>
+      focusable()[0]?.focus(),
+    );
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -64,13 +71,30 @@ export const Drawer = ({ open, title, onClose, children }: DrawerProps) => {
 
   if (!open) return null;
   return (
-    <div className={styles.backdrop} role="presentation" onMouseDown={(event: ReactMouseEvent<HTMLDivElement>) => {
-      if (event.target === event.currentTarget) onClose();
-    }}>
-      <section ref={dialogRef} className={styles.drawer} role="dialog" aria-modal="true" aria-label={title}>
+    <div
+      className={styles.backdrop}
+      role="presentation"
+      onMouseDown={(event: ReactMouseEvent<HTMLDivElement>) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <section
+        ref={dialogRef}
+        className={styles.drawer}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+      >
         <header className={styles.header}>
           <h2 className={styles.title}>{title}</h2>
-          <button className={styles.close} type="button" aria-label="Close" onClick={onClose}>×</button>
+          <button
+            className={styles.close}
+            type="button"
+            aria-label="Close"
+            onClick={onClose}
+          >
+            ×
+          </button>
         </header>
         {children}
       </section>

@@ -9,12 +9,29 @@ export const ArticleCard = ({ article }: { article: Article }) => (
     <div className={styles.content}>
       <ArticleMetadata article={article} />
       <h2 className={styles.title}>
-        <a href={article.url} target="_blank" rel="noopener noreferrer" aria-label={`${article.title} (opens in a new tab)`}>{article.title}</a>
+        <a
+          href={article.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`${article.title} (opens in a new tab)`}
+        >
+          {article.title}
+        </a>
       </h2>
-      {article.description ? <p className={styles.description}>{article.description}</p> : null}
+      {article.description ? (
+        <p className={styles.description}>{article.description}</p>
+      ) : null}
       <footer className={styles.footer}>
-        <div className={styles.tags}>{article.categories.map((category) => <span className={styles.tag} key={category}>{category}</span>)}</div>
-        {article.author ? <span className={styles.author}>By {article.author}</span> : null}
+        <div className={styles.tags}>
+          {article.categories.map((category) => (
+            <span className={styles.tag} key={category}>
+              {category}
+            </span>
+          ))}
+        </div>
+        {article.author ? (
+          <span className={styles.author}>By {article.author}</span>
+        ) : null}
       </footer>
     </div>
   </article>

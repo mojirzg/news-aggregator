@@ -2,7 +2,7 @@ services:
   news-aggregator:
     build: .
     ports:
-      - "3000:3000"
+      - '3000:3000'
     environment:
       NEWS_PROVIDER_MODE: ${NEWS_PROVIDER_MODE:-mock}
       PORT: 3000

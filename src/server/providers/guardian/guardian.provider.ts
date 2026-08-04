@@ -17,7 +17,10 @@ const sectionMap: Record<Category, string> = {
   general: 'world',
 };
 
-export const buildGuardianUrl = (filters: ArticleFilters, apiKey: string): URL => {
+export const buildGuardianUrl = (
+  filters: ArticleFilters,
+  apiKey: string,
+): URL => {
   const url = new URL(guardianConfig.endpoint);
   url.searchParams.set('api-key', apiKey);
   url.searchParams.set('page-size', String(guardianConfig.pageSize));
@@ -28,13 +31,15 @@ export const buildGuardianUrl = (filters: ArticleFilters, apiKey: string): URL =
   if (filters.dateFrom) url.searchParams.set('from-date', filters.dateFrom);
   if (filters.dateTo) url.searchParams.set('to-date', filters.dateTo);
   if (filters.categories.length > 0) {
-    const sections = filters.categories.map((category) => sectionMap[category]).filter(Boolean);
-    if (sections.length > 0) url.searchParams.set('section', sections.join('|'));
+    const sections = filters.categories
+      .map((category) => sectionMap[category])
+      .filter(Boolean);
+    if (sections.length > 0)
+      url.searchParams.set('section', sections.join('|'));
   }
 
   return url;
 };
-
 
 export class GuardianProvider implements NewsProvider {
   public readonly id = 'guardian' as const;
@@ -44,11 +49,18 @@ export class GuardianProvider implements NewsProvider {
 
   public async fetchArticles(filters: ArticleFilters, signal: AbortSignal) {
     try {
-      const response = await fetchGuardian(buildGuardianUrl(filters, this.apiKey), signal);
-      console.log(`Fetched ${response.response.results.length} articles from The Guardian`);
+      const response = await fetchGuardian(
+        buildGuardianUrl(filters, this.apiKey),
+        signal,
+      );
+      console.log(
+        `Fetched ${response.response.results.length} articles from The Guardian`,
+      );
       return mapGuardianResponse(response);
     } catch (error) {
-      throw new ProviderError(this.id, 'The Guardian request failed.', { cause: error });
+      throw new ProviderError(this.id, 'The Guardian request failed.', {
+        cause: error,
+      });
     }
   }
 }

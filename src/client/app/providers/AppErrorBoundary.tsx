@@ -2,9 +2,14 @@ import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { ErrorState } from '@client/shared/ui/ErrorState';
 import { Button } from '@client/shared/ui/Button';
 
-interface State { hasError: boolean }
+interface State {
+  hasError: boolean;
+}
 
-export class AppErrorBoundary extends Component<{ children: ReactNode }, State> {
+export class AppErrorBoundary extends Component<
+  { children: ReactNode },
+  State
+> {
   public state: State = { hasError: false };
 
   public static getDerivedStateFromError(): State {
@@ -19,7 +24,13 @@ export class AppErrorBoundary extends Component<{ children: ReactNode }, State> 
     if (this.state.hasError) {
       return (
         <main className="container" style={{ padding: '64px 0' }}>
-          <ErrorState action={<Button type="button" onClick={() => window.location.reload()}>Reload application</Button>} />
+          <ErrorState
+            action={
+              <Button type="button" onClick={() => window.location.reload()}>
+                Reload application
+              </Button>
+            }
+          />
         </main>
       );
     }

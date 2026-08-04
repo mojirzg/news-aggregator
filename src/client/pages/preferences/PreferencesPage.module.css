@@ -1,6 +1,27 @@
-.page { padding: 38px 0 72px; }
-.header { display: grid; gap: 10px; margin-bottom: 26px; }
-.eyebrow { color: var(--color-accent); font-size: 0.78rem; font-weight: 850; letter-spacing: 0.1em; text-transform: uppercase; }
-.title { font-size: clamp(2rem, 5vw, 3rem); line-height: 1.05; letter-spacing: -0.05em; }
-.subtitle { max-width: 700px; color: var(--color-text-muted); }
-.content { max-width: 900px; }
+.page {
+  padding: 38px 0 72px;
+}
+.header {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 26px;
+}
+.eyebrow {
+  color: var(--color-accent);
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.title {
+  font-size: clamp(2rem, 5vw, 3rem);
+  line-height: 1.05;
+  letter-spacing: -0.05em;
+}
+.subtitle {
+  max-width: 700px;
+  color: var(--color-text-muted);
+}
+.content {
+  max-width: 900px;
+}

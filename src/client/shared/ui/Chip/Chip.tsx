@@ -7,14 +7,24 @@ interface ChipProps {
 }
 
 export const Chip = ({ children, onRemove }: ChipProps) => {
-  const accessibleLabel = typeof children === 'string' || typeof children === 'number'
-    ? String(children)
-    : 'chip';
+  const accessibleLabel =
+    typeof children === 'string' || typeof children === 'number'
+      ? String(children)
+      : 'chip';
 
   return (
     <span className={styles.chip}>
       {children}
-      {onRemove ? <button className={styles.remove} type="button" aria-label={`Remove ${accessibleLabel}`} onClick={onRemove}>×</button> : null}
+      {onRemove ? (
+        <button
+          className={styles.remove}
+          type="button"
+          aria-label={`Remove ${accessibleLabel}`}
+          onClick={onRemove}
+        >
+          ×
+        </button>
+      ) : null}
     </span>
   );
 };

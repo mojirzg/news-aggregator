@@ -22,5 +22,10 @@
     },
     "noUncheckedIndexedAccess": true
   },
-  "include": ["src/client", "src/contracts", "vite.config.ts", "vitest.config.ts"]
+  "include": [
+    "src/client",
+    "src/contracts",
+    "vite.config.ts",
+    "vitest.config.ts"
+  ]
 }

@@ -24,12 +24,12 @@ The `scripts/check-import-boundaries.mjs` quality gate rejects imports from a lo
 
 ## State ownership
 
-| State | Owner | Reason |
-|---|---|---|
-| Search and public filters | URL search parameters | Shareable, reload-safe, browser navigation works |
-| Feed data and request state | TanStack Query | Cache, retry, background refresh, cancellation |
-| Feed preferences | Versioned local storage | Assessment has no authentication or profile API |
-| Filter drawer draft | Local component state | Temporary and discarded on cancel |
+| State                       | Owner                   | Reason                                           |
+| --------------------------- | ----------------------- | ------------------------------------------------ |
+| Search and public filters   | URL search parameters   | Shareable, reload-safe, browser navigation works |
+| Feed data and request state | TanStack Query          | Cache, retry, background refresh, cancellation   |
+| Feed preferences            | Versioned local storage | Assessment has no authentication or profile API  |
+| Filter drawer draft         | Local component state   | Temporary and discarded on cancel                |
 
 Redux is intentionally absent. There is no complex cross-feature client state that justifies it.
 

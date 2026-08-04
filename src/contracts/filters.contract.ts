@@ -4,16 +4,13 @@ import { isoDateSchema } from './common.contract';
 import { providerIdSchema } from './provider.contract';
 
 const csv = <T>(schema: z.ZodType<T>) =>
-  z.preprocess(
-    (value) => {
-      const values = Array.isArray(value) ? value : [value];
-      return values
-        .flatMap((item) => (typeof item === 'string' ? item.split(',') : []))
-        .map((item) => item.trim())
-        .filter(Boolean);
-    },
-    z.array(schema),
-  );
+  z.preprocess((value) => {
+    const values = Array.isArray(value) ? value : [value];
+    return values
+      .flatMap((item) => (typeof item === 'string' ? item.split(',') : []))
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }, z.array(schema));
 
 const unique = <T>(values: T[]): T[] => [...new Set(values)];
 
@@ -29,7 +26,10 @@ const filtersObjectSchema = z.object({
 export const articleFiltersSchema = filtersObjectSchema
   .refine(
     ({ dateFrom, dateTo }) => !dateFrom || !dateTo || dateFrom <= dateTo,
-    { message: 'dateFrom must be before or equal to dateTo', path: ['dateFrom'] },
+    {
+      message: 'dateFrom must be before or equal to dateTo',
+      path: ['dateFrom'],
+    },
   )
   .transform((filters) => ({
     ...filters,
@@ -49,7 +49,10 @@ export const feedQuerySchema = z
   })
   .refine(
     ({ dateFrom, dateTo }) => !dateFrom || !dateTo || dateFrom <= dateTo,
-    { message: 'dateFrom must be before or equal to dateTo', path: ['dateFrom'] },
+    {
+      message: 'dateFrom must be before or equal to dateTo',
+      path: ['dateFrom'],
+    },
   )
   .transform((filters) => ({
     ...filters,

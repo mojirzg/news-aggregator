@@ -27,7 +27,9 @@ export const nytResponseSchema = z.object({
         headline: z.object({ main: z.string() }),
         abstract: z.string().nullable().optional(),
         lead_paragraph: z.string().nullable().optional(),
-        byline: z.object({ original: z.string().nullable().optional() }).optional(),
+        byline: z
+          .object({ original: z.string().nullable().optional() })
+          .optional(),
         multimedia: z
           .array(
             z.object({
@@ -46,9 +48,13 @@ export const nytResponseSchema = z.object({
 export type NytResponse = z.infer<typeof nytResponseSchema>;
 
 const imageUrl = (items: NytMultimedia) => {
-  const item = items.find((entry: NytMultimedia[number]) => entry.subtype === 'xlarge') ?? items[0];
+  const item =
+    items.find((entry: NytMultimedia[number]) => entry.subtype === 'xlarge') ??
+    items[0];
   if (!item) return undefined;
-  return item.url.startsWith('http') ? item.url : `https://www.nytimes.com/${item.url}`;
+  return item.url.startsWith('http')
+    ? item.url
+    : `https://www.nytimes.com/${item.url}`;
 };
 
 export const mapNytResponse = (payload: NytResponse): Article[] =>
@@ -64,7 +70,8 @@ export const mapNytResponse = (payload: NytResponse): Article[] =>
       ...(image ? { imageUrl: image } : {}),
       ...(author ? { author } : {}),
       publishedAt: new Date(item.pub_date).toISOString(),
-      keywords: item.keywords?.map((keyword: NytKeyword) => keyword.value) ?? [],
+      keywords:
+        item.keywords?.map((keyword: NytKeyword) => keyword.value) ?? [],
       categories: [categoryBySection[item.section_name ?? ''] ?? 'general'],
       source: { id: 'nyt', name: 'The New York Times' },
     };

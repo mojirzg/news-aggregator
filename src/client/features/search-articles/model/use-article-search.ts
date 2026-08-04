@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { normalizeSearchQuery } from '../lib/normalize-search-query';
 
-export const useArticleSearch = (query: string, onCommit: (query: string) => void) => {
+export const useArticleSearch = (
+  query: string,
+  onCommit: (query: string) => void,
+) => {
   const [value, setValue] = useState(query);
 
   useEffect(() => setValue(query), [query]);

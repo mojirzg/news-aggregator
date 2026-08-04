@@ -15,25 +15,34 @@ const walk = (directory) => {
   });
 };
 
-for (const file of walk(clientRoot).filter((item) => sourceExtensions.has(path.extname(item)))) {
+for (const file of walk(clientRoot).filter((item) =>
+  sourceExtensions.has(path.extname(item)),
+)) {
   const relative = path.relative(clientRoot, file);
   const importerLayer = relative.split(path.sep)[0];
   const importerIndex = layerIndex.get(importerLayer);
   if (importerIndex === undefined) continue;
 
   const source = fs.readFileSync(file, 'utf8');
-  const imports = [...source.matchAll(/from\s+['"]@client\/([^/'"]+)/g)].map((match) => match[1]);
+  const imports = [...source.matchAll(/from\s+['"]@client\/([^/'"]+)/g)].map(
+    (match) => match[1],
+  );
   for (const importedLayer of imports) {
     const importedIndex = layerIndex.get(importedLayer);
     if (importedIndex === undefined) continue;
     if (importedIndex < importerIndex) {
-      violations.push(`${relative}: ${importerLayer} must not import higher layer ${importedLayer}`);
+      violations.push(
+        `${relative}: ${importerLayer} must not import higher layer ${importedLayer}`,
+      );
     }
   }
 }
 
 if (violations.length > 0) {
-  console.error('Client architecture boundary violations:\n' + violations.map((item) => `- ${item}`).join('\n'));
+  console.error(
+    'Client architecture boundary violations:\n' +
+      violations.map((item) => `- ${item}`).join('\n'),
+  );
   process.exit(1);
 }
 

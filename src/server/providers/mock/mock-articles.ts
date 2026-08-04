@@ -1,7 +1,8 @@
 import type { Article, ProviderId } from '@contracts/index';
 
 const now = Date.now();
-const hoursAgo = (hours: number) => new Date(now - hours * 60 * 60 * 1000).toISOString();
+const hoursAgo = (hours: number) =>
+  new Date(now - hours * 60 * 60 * 1000).toISOString();
 
 export const mockArticles: Record<ProviderId, Article[]> = {
   guardian: [
@@ -9,8 +10,10 @@ export const mockArticles: Record<ProviderId, Article[]> = {
       id: 'guardian:ai-regulation',
       url: 'https://www.theguardian.com/technology/example-ai-regulation',
       title: 'European teams rethink responsible AI delivery',
-      description: 'Engineering leaders are tightening model governance while keeping product teams moving quickly.',
-      imageUrl: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80',
+      description:
+        'Engineering leaders are tightening model governance while keeping product teams moving quickly.',
+      imageUrl:
+        'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80',
       author: 'Elena Brooks',
       publishedAt: hoursAgo(1),
       categories: ['technology'],
@@ -21,8 +24,10 @@ export const mockArticles: Record<ProviderId, Article[]> = {
       id: 'guardian:climate-labs',
       url: 'https://www.theguardian.com/science/example-climate-labs',
       title: 'Climate laboratories share a faster forecasting method',
-      description: 'A cross-border research effort has reduced the time needed to model local weather extremes.',
-      imageUrl: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80',
+      description:
+        'A cross-border research effort has reduced the time needed to model local weather extremes.',
+      imageUrl:
+        'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80',
       author: 'Nadia Okafor',
       publishedAt: hoursAgo(5),
       categories: ['science'],
@@ -32,7 +37,8 @@ export const mockArticles: Record<ProviderId, Article[]> = {
       id: 'guardian:health-data',
       url: 'https://www.theguardian.com/society/example-health-data',
       title: 'Hospitals test privacy-first patient data exchange',
-      description: 'The pilot focuses on interoperability without centralizing sensitive medical records.',
+      description:
+        'The pilot focuses on interoperability without centralizing sensitive medical records.',
       author: 'Maya Chen',
       publishedAt: hoursAgo(11),
       categories: ['health'],
@@ -44,8 +50,10 @@ export const mockArticles: Record<ProviderId, Article[]> = {
       id: 'nyt:markets-cloud',
       url: 'https://www.nytimes.com/example-markets-cloud',
       title: 'Cloud spending shifts from expansion to efficiency',
-      description: 'Technology buyers are asking vendors to prove measurable value before approving larger contracts.',
-      imageUrl: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80',
+      description:
+        'Technology buyers are asking vendors to prove measurable value before approving larger contracts.',
+      imageUrl:
+        'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80',
       author: 'Jordan Lee',
       publishedAt: hoursAgo(2),
       categories: ['business', 'technology'],
@@ -56,8 +64,10 @@ export const mockArticles: Record<ProviderId, Article[]> = {
       id: 'nyt:space-telescope',
       url: 'https://www.nytimes.com/example-space-telescope',
       title: 'A new telescope pipeline turns raw images into discoveries',
-      description: 'Open tooling is helping smaller research groups process observations once reserved for major institutions.',
-      imageUrl: 'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=1200&q=80',
+      description:
+        'Open tooling is helping smaller research groups process observations once reserved for major institutions.',
+      imageUrl:
+        'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=1200&q=80',
       author: 'Priya Raman',
       publishedAt: hoursAgo(7),
       categories: ['science'],
@@ -67,7 +77,8 @@ export const mockArticles: Record<ProviderId, Article[]> = {
       id: 'nyt:football-analytics',
       url: 'https://www.nytimes.com/example-football-analytics',
       title: 'Football clubs build smaller, sharper analytics teams',
-      description: 'The newest competitive edge is not more data, but better questions and faster feedback loops.',
+      description:
+        'The newest competitive edge is not more data, but better questions and faster feedback loops.',
       author: 'Daniel Foster',
       publishedAt: hoursAgo(14),
       categories: ['sports'],
@@ -79,8 +90,10 @@ export const mockArticles: Record<ProviderId, Article[]> = {
       id: 'newsapi:frontend-performance',
       url: 'https://example.com/frontend-performance',
       title: 'Frontend teams make performance budgets part of pull requests',
-      description: 'Automated checks are catching costly regressions before they reach production.',
-      imageUrl: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80',
+      description:
+        'Automated checks are catching costly regressions before they reach production.',
+      imageUrl:
+        'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80',
       author: 'Amir Solberg',
       publishedAt: hoursAgo(3),
       categories: ['technology'],
@@ -91,7 +104,8 @@ export const mockArticles: Record<ProviderId, Article[]> = {
       id: 'newsapi:biotech-funding',
       url: 'https://example.com/biotech-funding',
       title: 'Biotech funding returns with stricter milestones',
-      description: 'Investors are backing smaller rounds tied to clinical and manufacturing evidence.',
+      description:
+        'Investors are backing smaller rounds tied to clinical and manufacturing evidence.',
       author: 'Sofia Marin',
       publishedAt: hoursAgo(9),
       categories: ['business', 'health'],
@@ -101,8 +115,10 @@ export const mockArticles: Record<ProviderId, Article[]> = {
       id: 'newsapi:streaming',
       url: 'https://example.com/streaming',
       title: 'Streaming platforms experiment with shorter release windows',
-      description: 'Studios are testing flexible schedules to balance subscriber growth and audience retention.',
-      imageUrl: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=1200&q=80',
+      description:
+        'Studios are testing flexible schedules to balance subscriber growth and audience retention.',
+      imageUrl:
+        'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=1200&q=80',
       author: 'Leila Hart',
       publishedAt: hoursAgo(17),
       categories: ['entertainment'],

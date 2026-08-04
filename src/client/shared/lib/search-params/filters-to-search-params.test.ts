@@ -13,11 +13,13 @@ describe('filter URL serialization', () => {
       dateTo: '2026-01-31',
     };
 
-    const parsed = searchParamsToFilters(filtersToSearchParams({
-      ...filters,
-      sourceIds: [...filters.sourceIds],
-      categories: [...filters.categories],
-    }));
+    const parsed = searchParamsToFilters(
+      filtersToSearchParams({
+        ...filters,
+        sourceIds: [...filters.sourceIds],
+        categories: [...filters.categories],
+      }),
+    );
 
     expect(parsed).toEqual({
       ...filters,
@@ -27,7 +29,11 @@ describe('filter URL serialization', () => {
   });
 
   it('drops unsupported source and category values', () => {
-    const parsed = searchParamsToFilters(new URLSearchParams('sourceIds=guardian,unknown&categories=science,politics'));
+    const parsed = searchParamsToFilters(
+      new URLSearchParams(
+        'sourceIds=guardian,unknown&categories=science,politics',
+      ),
+    );
     expect(parsed.sourceIds).toEqual(['guardian']);
     expect(parsed.categories).toEqual(['science']);
   });

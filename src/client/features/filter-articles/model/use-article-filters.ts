@@ -6,11 +6,16 @@ import { searchParamsToFilters } from '@client/shared/lib/search-params/search-p
 
 export const useArticleFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const filters = useMemo(() => searchParamsToFilters(searchParams), [searchParams]);
+  const filters = useMemo(
+    () => searchParamsToFilters(searchParams),
+    [searchParams],
+  );
 
   const setFilters = useCallback(
     (next: ArticleFilters, options?: { replace?: boolean }) => {
-      setSearchParams(filtersToSearchParams(next), { replace: options?.replace ?? false });
+      setSearchParams(filtersToSearchParams(next), {
+        replace: options?.replace ?? false,
+      });
     },
     [setSearchParams],
   );

@@ -3,14 +3,17 @@ import { mapNewsApiResponse, buildNewsApiUrl } from './newsapi.provider';
 
 describe('NewsAPI adapter mapping', () => {
   it('uses normalized filters in the Everything endpoint', () => {
-    const url = buildNewsApiUrl({
-      query: 'frontend',
-      sourceIds: ['newsapi'],
-      categories: ['technology'],
-      authors: [],
-      dateFrom: '2026-03-01',
-      dateTo: '2026-03-10',
-    }, 'secret');
+    const url = buildNewsApiUrl(
+      {
+        query: 'frontend',
+        sourceIds: ['newsapi'],
+        categories: ['technology'],
+        authors: [],
+        dateFrom: '2026-03-01',
+        dateTo: '2026-03-10',
+      },
+      'secret',
+    );
 
     expect(url.searchParams.get('q')).toBe('frontend OR technology');
     expect(url.searchParams.get('from')).toBe('2026-03-01');

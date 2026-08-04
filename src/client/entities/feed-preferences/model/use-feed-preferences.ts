@@ -8,11 +8,19 @@ import {
 } from '../lib/preferences-storage';
 
 export const useFeedPreferences = () => {
-  const [preferences, setPreferences] = useState<FeedPreferences>(() => readPreferences());
+  const [preferences, setPreferences] = useState<FeedPreferences>(() =>
+    readPreferences(),
+  );
 
-  useEffect(() => subscribeToPreferences(() => setPreferences(readPreferences())), []);
+  useEffect(
+    () => subscribeToPreferences(() => setPreferences(readPreferences())),
+    [],
+  );
 
-  const save = useCallback((next: FeedPreferences) => writePreferences(next), []);
+  const save = useCallback(
+    (next: FeedPreferences) => writePreferences(next),
+    [],
+  );
   const clear = useCallback(() => clearPreferences(), []);
   return { preferences, save, clear };
 };

@@ -6,8 +6,14 @@ import styles from './AppHeader.module.css';
 export const AppHeader = () => (
   <header className={styles.header}>
     <div className={`container ${styles.inner}`}>
-      <Link className={styles.brand} to={routes.news} aria-label="Signal News home">
-        <span className={styles.logo} aria-hidden="true">S</span>
+      <Link
+        className={styles.brand}
+        to={routes.news}
+        aria-label="Signal News home"
+      >
+        <span className={styles.logo} aria-hidden="true">
+          S
+        </span>
         <span className={styles.brandText}>Signal News</span>
       </Link>
       <AppNavigation />

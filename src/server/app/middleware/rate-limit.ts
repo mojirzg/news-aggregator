@@ -6,5 +6,10 @@ export const apiRateLimit = rateLimit({
   limit: serverEnv.REQUEST_LIMIT_PER_MINUTE,
   standardHeaders: 'draft-8',
   legacyHeaders: false,
-  message: { error: { code: 'RATE_LIMITED', message: 'Too many requests. Try again shortly.' } },
+  message: {
+    error: {
+      code: 'RATE_LIMITED',
+      message: 'Too many requests. Try again shortly.',
+    },
+  },
 });

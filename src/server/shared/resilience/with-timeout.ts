@@ -12,7 +12,12 @@ export const withTimeoutSignal = (
   }
 
   const timer = setTimeout(() => {
-    controller.abort(new DOMException(`Provider timed out after ${timeoutMs}ms`, 'TimeoutError'));
+    controller.abort(
+      new DOMException(
+        `Provider timed out after ${timeoutMs}ms`,
+        'TimeoutError',
+      ),
+    );
   }, timeoutMs);
 
   return {

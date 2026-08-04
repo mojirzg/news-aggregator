@@ -16,7 +16,10 @@ export class MockProvider implements NewsProvider {
     }[id];
   }
 
-  public async fetchArticles(filters: ArticleFilters, signal: AbortSignal): Promise<Article[]> {
+  public async fetchArticles(
+    filters: ArticleFilters,
+    signal: AbortSignal,
+  ): Promise<Article[]> {
     await new Promise<void>((resolve, reject) => {
       const timer = setTimeout(resolve, 120);
       signal.addEventListener(
@@ -34,17 +37,29 @@ export class MockProvider implements NewsProvider {
         !filters.query ||
         includesInsensitive(article.title, filters.query) ||
         includesInsensitive(article.description, filters.query) ||
-        article.keywords?.some((keyword) => includesInsensitive(keyword, filters.query));
+        article.keywords?.some((keyword) =>
+          includesInsensitive(keyword, filters.query),
+        );
       const categoryMatches =
         filters.categories.length === 0 ||
-        filters.categories.some((category) => article.categories.includes(category));
+        filters.categories.some((category) =>
+          article.categories.includes(category),
+        );
       const authorMatches =
         filters.authors.length === 0 ||
-        filters.authors.some((author) => includesInsensitive(article.author, author));
+        filters.authors.some((author) =>
+          includesInsensitive(article.author, author),
+        );
       const date = article.publishedAt.slice(0, 10);
       const afterFrom = !filters.dateFrom || date >= filters.dateFrom;
       const beforeTo = !filters.dateTo || date <= filters.dateTo;
-      return queryMatches && categoryMatches && authorMatches && afterFrom && beforeTo;
+      return (
+        queryMatches &&
+        categoryMatches &&
+        authorMatches &&
+        afterFrom &&
+        beforeTo
+      );
     });
   }
 }

@@ -5,7 +5,14 @@ import { ResultsCount } from './ResultsCount';
 import styles from './ArticleToolbar.module.css';
 
 const hasFilters = (filters: ArticleFilters) =>
-  Boolean(filters.query || filters.sourceIds.length || filters.categories.length || filters.authors.length || filters.dateFrom || filters.dateTo);
+  Boolean(
+    filters.query ||
+    filters.sourceIds.length ||
+    filters.categories.length ||
+    filters.authors.length ||
+    filters.dateFrom ||
+    filters.dateTo,
+  );
 
 export const ArticleToolbar = ({
   filters,

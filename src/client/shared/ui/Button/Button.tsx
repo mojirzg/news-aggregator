@@ -20,7 +20,13 @@ export const Button = ({
 }: ButtonProps) => (
   <button
     type={type}
-    className={[styles.button, styles[variant], size === 'small' ? styles.small : '', fullWidth ? styles.fullWidth : '', className]
+    className={[
+      styles.button,
+      styles[variant],
+      size === 'small' ? styles.small : '',
+      fullWidth ? styles.fullWidth : '',
+      className,
+    ]
       .filter(Boolean)
       .join(' ')}
     {...props}

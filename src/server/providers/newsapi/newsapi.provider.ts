@@ -5,10 +5,8 @@ import type { NewsProvider } from '../news-provider';
 import { ProviderError } from '../provider-errors';
 import { fetchJson } from '@server/shared/http/provider-http-client';
 
-
 export type NewsApiResponse = z.infer<typeof newsApiResponseSchema>;
 type NewsApiItem = NewsApiResponse['articles'][number];
-
 
 export const newsApiConfig = {
   endpoint: 'https://newsapi.org/v2/everything',
@@ -32,25 +30,33 @@ export const newsApiResponseSchema = z.object({
   ),
 });
 
-
-
-export const buildNewsApiUrl = (filters: ArticleFilters, apiKey: string): URL => {
+export const buildNewsApiUrl = (
+  filters: ArticleFilters,
+  apiKey: string,
+): URL => {
   const url = new URL(newsApiConfig.endpoint);
   url.searchParams.set('apiKey', apiKey);
   url.searchParams.set('language', 'en');
   url.searchParams.set('sortBy', 'publishedAt');
   url.searchParams.set('pageSize', String(newsApiConfig.pageSize));
 
-  const categoryTerms = filters.categories.filter((category) => category !== 'general');
+  const categoryTerms = filters.categories.filter(
+    (category) => category !== 'general',
+  );
   const queryParts = [filters.query, ...categoryTerms].filter(Boolean);
-  url.searchParams.set('q', queryParts.length > 0 ? queryParts.join(' OR ') : 'news');
+  url.searchParams.set(
+    'q',
+    queryParts.length > 0 ? queryParts.join(' OR ') : 'news',
+  );
   if (filters.dateFrom) url.searchParams.set('from', filters.dateFrom);
   if (filters.dateTo) url.searchParams.set('to', filters.dateTo);
   return url;
 };
 
-
-const inferCategory = (title: string, description?: string | null): Category => {
+const inferCategory = (
+  title: string,
+  description?: string | null,
+): Category => {
   const text = `${title} ${description ?? ''}`.toLowerCase();
   const terms: Array<[Category, string[]]> = [
     ['technology', ['technology', 'software', 'ai', 'computer', 'cyber']],
@@ -60,9 +66,12 @@ const inferCategory = (title: string, description?: string | null): Category => 
     ['health', ['health', 'medical', 'medicine', 'hospital']],
     ['entertainment', ['film', 'movie', 'music', 'television', 'celebrity']],
   ];
-  return terms.find(([, keywords]) => keywords.some((keyword) => text.includes(keyword)))?.[0] ?? 'general';
+  return (
+    terms.find(([, keywords]) =>
+      keywords.some((keyword) => text.includes(keyword)),
+    )?.[0] ?? 'general'
+  );
 };
-
 
 export const mapNewsApiResponse = (payload: NewsApiResponse): Article[] =>
   payload.articles
@@ -79,10 +88,8 @@ export const mapNewsApiResponse = (payload: NewsApiResponse): Article[] =>
       source: { id: 'newsapi', name: item.source.name || 'NewsAPI' },
     }));
 
-
 export const fetchNewsApi = (url: URL, signal: AbortSignal) =>
   fetchJson(url, newsApiResponseSchema, signal);
-
 
 export class NewsApiProvider implements NewsProvider {
   public readonly id = 'newsapi' as const;
@@ -92,9 +99,13 @@ export class NewsApiProvider implements NewsProvider {
 
   public async fetchArticles(filters: ArticleFilters, signal: AbortSignal) {
     try {
-      return mapNewsApiResponse(await fetchNewsApi(buildNewsApiUrl(filters, this.apiKey), signal));
+      return mapNewsApiResponse(
+        await fetchNewsApi(buildNewsApiUrl(filters, this.apiKey), signal),
+      );
     } catch (error) {
-      throw new ProviderError(this.id, 'NewsAPI request failed.', { cause: error });
+      throw new ProviderError(this.id, 'NewsAPI request failed.', {
+        cause: error,
+      });
     }
   }
 }

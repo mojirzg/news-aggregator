@@ -7,14 +7,19 @@ import {
 } from '@contracts/index';
 
 const parseCsv = (value: string | null): string[] =>
-  value?.split(',').map((item) => item.trim()).filter(Boolean) ?? [];
+  value
+    ?.split(',')
+    .map((item) => item.trim())
+    .filter(Boolean) ?? [];
 
 const parseDate = (value: string | null): string | undefined => {
   const parsed = isoDateSchema.safeParse(value);
   return parsed.success ? parsed.data : undefined;
 };
 
-export const searchParamsToFilters = (params: URLSearchParams): ArticleFilters => {
+export const searchParamsToFilters = (
+  params: URLSearchParams,
+): ArticleFilters => {
   const sourceIds = parseCsv(params.get('sourceIds')).flatMap((value) => {
     const parsed = providerIdSchema.safeParse(value);
     return parsed.success ? [parsed.data] : [];
@@ -25,13 +30,18 @@ export const searchParamsToFilters = (params: URLSearchParams): ArticleFilters =
   });
   const dateFrom = parseDate(params.get('dateFrom'));
   const parsedDateTo = parseDate(params.get('dateTo'));
-  const dateTo = dateFrom && parsedDateTo && dateFrom > parsedDateTo ? undefined : parsedDateTo;
+  const dateTo =
+    dateFrom && parsedDateTo && dateFrom > parsedDateTo
+      ? undefined
+      : parsedDateTo;
 
   return articleFiltersSchema.parse({
     query: (params.get('query') ?? '').slice(0, 160),
     sourceIds,
     categories,
-    authors: parseCsv(params.get('authors')).map((author) => author.slice(0, 100)),
+    authors: parseCsv(params.get('authors')).map((author) =>
+      author.slice(0, 100),
+    ),
     dateFrom,
     dateTo,
   });
