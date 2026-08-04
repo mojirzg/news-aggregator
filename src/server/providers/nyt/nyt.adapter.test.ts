@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { mapNytResponse } from './nyt.mapper';
-import { buildNytUrl } from './nyt-request.mapper';
+import { mapNytResponse } from './nyt.response';
+import { buildNytUrl } from './nyt.provider';
 
 describe('New York Times adapter mapping', () => {
   it('translates dates and categories into Article Search parameters', () => {

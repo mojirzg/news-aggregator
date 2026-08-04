@@ -1,4 +1,7 @@
 import { Router } from 'express';
-import { getHealth } from './health.controller';
+import type { Request, Response } from 'express';
 
-export const healthRouter = Router().get('/', getHealth);
+
+export const healthRouter = Router().get('/', (_request: Request, response: Response) => {
+  response.json({ status: 'ok', timestamp: new Date().toISOString() });
+})

@@ -10,11 +10,11 @@
   "scripts": {
     "dev": "concurrently -k -n server,client -c yellow,cyan \"npm:dev:server\" \"npm:dev:client\"",
     "dev:client": "vite",
-    "dev:server": "tsx watch src/server/index.ts",
+    "dev:server": "tsx watch --env-file-if-exists=.env --env-file-if-exists=.env.local src/server/index.ts",
     "build": "npm run clean && npm run build:client && npm run build:server",
     "build:client": "vite build",
     "build:server": "tsup src/server/index.ts --tsconfig tsconfig.server.json --format esm --platform node --target node22 --out-dir dist/server --sourcemap",
-    "start": "node dist/server/index.js",
+    "start": "node --env-file-if-exists=.env --env-file-if-exists=.env.local dist/server/index.js",
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
     "lint": "eslint . && node scripts/check-import-boundaries.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.client.json && tsc --noEmit -p tsconfig.server.json",

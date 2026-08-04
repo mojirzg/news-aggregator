@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mapNewsApiResponse } from './newsapi.mapper';
-import { buildNewsApiUrl } from './newsapi-request.mapper';
+import { mapNewsApiResponse, buildNewsApiUrl } from './newsapi.provider';
 
 describe('NewsAPI adapter mapping', () => {
   it('uses normalized filters in the Everything endpoint', () => {

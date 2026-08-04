@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { buildGuardianUrl } from './guardian-request.mapper';
-import { mapGuardianResponse } from './guardian.mapper';
+import { buildGuardianUrl} from './guardian.provider';
+import { mapGuardianResponse } from './guardian.response';
+
 
 describe('Guardian adapter mapping', () => {
   it('translates normalized filters into Guardian query parameters', () => {

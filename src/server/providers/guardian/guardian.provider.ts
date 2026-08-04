@@ -1,5 +1,11 @@
 import type { ArticleFilters, Category } from '@contracts/index';
-import { guardianConfig } from './guardian.config';
+import type { NewsProvider } from '../news-provider';
+import { ProviderError } from '../provider-errors';
+import { fetchGuardian, mapGuardianResponse } from './guardian.response';
+export const guardianConfig = {
+  endpoint: 'https://content.guardianapis.com/search',
+  pageSize: 30,
+} as const;
 
 const sectionMap: Record<Category, string> = {
   business: 'business',
@@ -28,3 +34,21 @@ export const buildGuardianUrl = (filters: ArticleFilters, apiKey: string): URL =
 
   return url;
 };
+
+
+export class GuardianProvider implements NewsProvider {
+  public readonly id = 'guardian' as const;
+  public readonly displayName = 'The Guardian';
+
+  public constructor(private readonly apiKey: string) {}
+
+  public async fetchArticles(filters: ArticleFilters, signal: AbortSignal) {
+    try {
+      const response = await fetchGuardian(buildGuardianUrl(filters, this.apiKey), signal);
+      console.log(`Fetched ${response.response.results.length} articles from The Guardian`);
+      return mapGuardianResponse(response);
+    } catch (error) {
+      throw new ProviderError(this.id, 'The Guardian request failed.', { cause: error });
+    }
+  }
+}

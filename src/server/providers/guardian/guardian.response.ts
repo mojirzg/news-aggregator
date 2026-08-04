@@ -1,5 +1,10 @@
 import type { Article, Category } from '@contracts/index';
-import type { GuardianResponse } from './guardian-response.schema';
+import { fetchJson } from '@server/shared/http/provider-http-client';
+import { z } from 'zod';
+
+
+export type GuardianResponse = z.infer<typeof guardianResponseSchema>;
+type GuardianItem = GuardianResponse['response']['results'][number];
 
 const categoryBySection: Record<string, Category> = {
   business: 'business',
@@ -9,8 +14,6 @@ const categoryBySection: Record<string, Category> = {
   society: 'health',
   culture: 'entertainment',
 };
-
-type GuardianItem = GuardianResponse['response']['results'][number];
 
 const stripHtml = (value?: string): string | undefined =>
   value?.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim() || undefined;
@@ -27,3 +30,33 @@ export const mapGuardianResponse = (payload: GuardianResponse): Article[] =>
     categories: [categoryBySection[item.sectionId ?? ''] ?? 'general'],
     source: { id: 'guardian', name: 'The Guardian' },
   }));
+
+
+export const fetchGuardian = (url: URL, signal: AbortSignal) =>
+  fetchJson(url, guardianResponseSchema, signal);
+
+export const guardianResponseSchema = z.object({
+  response: z.object({
+    status: z.string(),
+    results: z.array(
+      z.object({
+        id: z.string(),
+        type: z.string(),
+        sectionId: z.string().optional(),
+        sectionName: z.string().optional(),
+        webPublicationDate: z.string(),
+        webTitle: z.string(),
+        webUrl: z.string().url(),
+        fields: z
+          .object({
+            trailText: z.string().optional(),
+            thumbnail: z.string().url().optional(),
+            byline: z.string().optional(),
+          })
+          .optional(),
+      }),
+    ),
+  }),
+});
+
+
