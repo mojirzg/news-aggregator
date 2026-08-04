@@ -1,0 +1,4 @@
+.feed { display: grid; gap: 16px; }
+.skeletonCard { display: grid; grid-template-columns: 230px 1fr; gap: 22px; padding: 18px; background: white; border: 1px solid var(--color-border); border-radius: var(--radius-lg); }
+.skeletonBody { display: grid; align-content: start; gap: 12px; }
+@media (max-width: 700px) { .skeletonCard { grid-template-columns: 1fr; } }

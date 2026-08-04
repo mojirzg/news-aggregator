@@ -1,0 +1,14 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 4px 9px;
+  border: 1px solid #bae6fd;
+  border-radius: 999px;
+  background: var(--color-accent-soft);
+  color: #075985;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.remove { border: 0; padding: 0; background: transparent; color: inherit; line-height: 1; }

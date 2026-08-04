@@ -1,0 +1,10 @@
+.page { padding: 38px 0 64px; }
+.hero { display: grid; gap: 10px; margin-bottom: 24px; }
+.eyebrow { color: var(--color-accent); font-size: 0.78rem; font-weight: 850; letter-spacing: 0.1em; text-transform: uppercase; }
+.title { max-width: 760px; font-size: clamp(2rem, 5vw, 3.25rem); line-height: 1.03; letter-spacing: -0.055em; }
+.subtitle { max-width: 720px; color: var(--color-text-muted); font-size: 1.02rem; }
+.searchRow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; margin-bottom: 22px; }
+.layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); align-items: start; gap: 24px; }
+.content { display: grid; min-width: 0; gap: 18px; }
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+@media (max-width: 620px) { .page { padding-top: 28px; } .searchRow { grid-template-columns: 1fr auto; } }

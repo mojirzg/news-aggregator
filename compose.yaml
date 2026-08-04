@@ -1,0 +1,15 @@
+services:
+  news-aggregator:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      NEWS_PROVIDER_MODE: ${NEWS_PROVIDER_MODE:-mock}
+      PORT: 3000
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      PROVIDER_TIMEOUT_MS: ${PROVIDER_TIMEOUT_MS:-5000}
+      REQUEST_LIMIT_PER_MINUTE: ${REQUEST_LIMIT_PER_MINUTE:-120}
+      GUARDIAN_API_KEY: ${GUARDIAN_API_KEY:-}
+      NYT_API_KEY: ${NYT_API_KEY:-}
+      NEWS_API_KEY: ${NEWS_API_KEY:-}
+    restart: unless-stopped

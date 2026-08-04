@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "types": ["node", "vitest/globals"],
+    "paths": {
+      "@/*": ["./src/*"],
+      "@/client/*": ["./src/client/*"],
+      "@server/*": ["./src/server/*"],
+      "@contracts/*": ["./src/contracts/*"]
+    },
+    "noUncheckedIndexedAccess": true
+  },
+  "include": ["src/server", "src/contracts", "tests/**/*.ts", "playwright.config.ts", "vitest.config.ts"]
+}

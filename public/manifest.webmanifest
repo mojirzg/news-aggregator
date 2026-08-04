@@ -1,0 +1,9 @@
+{
+  "name": "Signal News",
+  "short_name": "Signal",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f8fa",
+  "theme_color": "#101828",
+  "icons": []
+}
