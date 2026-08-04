@@ -9,7 +9,6 @@ import { requestLogger } from './middleware/request-logger';
 import { securityHeaders } from './middleware/security-headers';
 import { registerRoutes } from './register-routes';
 import { serveClient } from './serve-client';
-import { FeedAggregator } from '../modules/feed/feed-aggregator';
 import { FeedService } from '../modules/feed/feed.service';
 
 export const createServer = () => {
@@ -22,8 +21,12 @@ export const createServer = () => {
   app.use(compression());
   app.use(express.json({ limit: '32kb' }));
 
-  const aggregator = new FeedAggregator(createProviderRegistry(), serverEnv.PROVIDER_TIMEOUT_MS);
-  registerRoutes(app, new FeedService(aggregator));
+  const feedService = new FeedService(
+    createProviderRegistry(),
+    serverEnv.PROVIDER_TIMEOUT_MS,
+  );
+
+  registerRoutes(app, feedService);
 
   serveClient(app);
   app.use(notFound);
