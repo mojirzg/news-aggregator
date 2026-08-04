@@ -1,4 +1,13 @@
 {
+"compilerOptions": {
+    "moduleResolution": "Bundler",
+    "paths": {
+      "": ["./"],
+      "@contracts/*": ["./src/contracts/*"],
+      "@client/*": ["./src/client/*"],
+      "@server/*": ["./src/server/*"],
+    }
+  },
   "files": [],
   "references": [
     { "path": "./tsconfig.client.json" },

@@ -23,7 +23,7 @@ export class MockProvider implements NewsProvider {
         'abort',
         () => {
           clearTimeout(timer);
-          reject(signal.reason);
+          reject(new Error(signal.reason as string));
         },
         { once: true },
       );

@@ -13,8 +13,6 @@
     "noEmit": true,
     "types": ["node", "vitest/globals"],
     "paths": {
-      "@/*": ["./src/*"],
-      "@/client/*": ["./src/client/*"],
       "@server/*": ["./src/server/*"],
       "@contracts/*": ["./src/contracts/*"]
     },

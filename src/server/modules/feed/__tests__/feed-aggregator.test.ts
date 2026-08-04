@@ -23,9 +23,9 @@ const provider = (id: ProviderId, behavior: () => Promise<Article[]>): NewsProvi
 describe('FeedAggregator', () => {
   it('keeps successful articles when one provider fails', async () => {
     const registry = new Map<ProviderId, NewsProvider>([
-      ['guardian', provider('guardian', async () => [makeArticle('g1', 'guardian', '2026-01-02T00:00:00.000Z')])],
-      ['nyt', provider('nyt', async () => { throw new Error('outage'); })],
-      ['newsapi', provider('newsapi', async () => [makeArticle('n1', 'newsapi', '2026-01-03T00:00:00.000Z')])],
+      ['guardian', provider('guardian', () => Promise.resolve([makeArticle('g1', 'guardian', '2026-01-02T00:00:00.000Z')]))],
+      ['nyt', provider('nyt', () => Promise.reject(new Error('outage')))],
+      ['newsapi', provider('newsapi', () => Promise.resolve([makeArticle('n1', 'newsapi', '2026-01-03T00:00:00.000Z')]))],
     ]);
 
     const result = await new FeedAggregator(registry, 1000).aggregate(filters, new AbortController().signal);
@@ -42,8 +42,14 @@ describe('FeedAggregator', () => {
     let guardianCalls = 0;
     let nytCalls = 0;
     const registry = new Map<ProviderId, NewsProvider>([
-      ['guardian', provider('guardian', async () => { guardianCalls += 1; return []; })],
-      ['nyt', provider('nyt', async () => { nytCalls += 1; return []; })],
+      ['guardian', provider('guardian', () => {
+        guardianCalls += 1;
+        return Promise.resolve<Article[]>([]);
+      })],
+      ['nyt', provider('nyt', () => {
+        nytCalls += 1;
+        return Promise.resolve<Article[]>([]);
+      })],
     ]);
 
     await new FeedAggregator(registry, 1000).aggregate({ ...filters, sourceIds: ['guardian'] }, new AbortController().signal);
@@ -52,13 +58,12 @@ describe('FeedAggregator', () => {
     expect(nytCalls).toBe(0);
   });
 
-
   it('turns a provider timeout into an isolated provider failure', async () => {
     const timeoutProvider: NewsProvider = {
       id: 'guardian',
       displayName: 'The Guardian',
       fetchArticles: (_filters, signal) => new Promise<Article[]>((_, reject) => {
-        signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+        signal.addEventListener('abort', () => reject(new Error(signal.reason)), { once: true });
       }),
     };
     const registry = new Map<ProviderId, NewsProvider>([['guardian', timeoutProvider]]);
@@ -71,10 +76,13 @@ describe('FeedAggregator', () => {
 
   it('applies author preferences after provider normalization', async () => {
     const registry = new Map<ProviderId, NewsProvider>([
-      ['guardian', provider('guardian', async () => [
-        makeArticle('keep', 'guardian', '2026-01-02T00:00:00.000Z', 'Maya Chen'),
-        makeArticle('drop', 'guardian', '2026-01-03T00:00:00.000Z', 'Other Author'),
-      ])],
+      ['guardian', provider(
+        'guardian',
+        () => Promise.resolve([
+          makeArticle('keep', 'guardian', '2026-01-02T00:00:00.000Z', 'Maya Chen'),
+          makeArticle('drop', 'guardian', '2026-01-03T00:00:00.000Z', 'Other Author'),
+        ]),
+      )],
     ]);
 
     const result = await new FeedAggregator(registry, 1000).aggregate(

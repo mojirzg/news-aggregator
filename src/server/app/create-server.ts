@@ -1,7 +1,5 @@
 import compression from 'compression';
 import express from 'express';
-import { FeedAggregator } from '@server/modules/feed/feed-aggregator';
-import { FeedService } from '@server/modules/feed/feed.service';
 import { createProviderRegistry } from '@server/providers/provider-registry';
 import { serverEnv } from '@server/shared/config/server-env';
 import { errorHandler } from './middleware/error-handler';
@@ -11,6 +9,8 @@ import { requestLogger } from './middleware/request-logger';
 import { securityHeaders } from './middleware/security-headers';
 import { registerRoutes } from './register-routes';
 import { serveClient } from './serve-client';
+import { FeedAggregator } from '../modules/feed/feed-aggregator';
+import { FeedService } from '../modules/feed/feed.service';
 
 export const createServer = () => {
   const app = express();

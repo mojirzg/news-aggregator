@@ -4,7 +4,7 @@ import { ApplicationError } from '@server/shared/errors/application-error';
 import { errorCodes } from '@server/shared/errors/error-codes';
 import { logger } from '@server/shared/logging/logger';
 
-export const errorHandler: ErrorRequestHandler = (error, _request, response, _next) => {
+export const errorHandler: ErrorRequestHandler = (error, _request, response) => {
   const requestId = response.locals.requestId as string | undefined;
 
   if (error instanceof ApplicationError) {

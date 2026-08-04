@@ -16,10 +16,9 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "types": ["vite/client", "vitest/globals"],
-    "baseUrl": ".",
     "paths": {
-      "@client/*": ["src/client/*"],
-      "@contracts/*": ["src/contracts/*"]
+      "@client/*": ["./src/client/*"],
+      "@contracts/*": ["./src/contracts/*"]
     },
     "noUncheckedIndexedAccess": true
   },

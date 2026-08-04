@@ -1,5 +1,5 @@
 import type { ArticleFilters, FeedResponse } from '@contracts/index';
-import { FeedAggregator } from './feed-aggregator';
+import type { FeedAggregator } from './feed-aggregator';
 
 export class FeedService {
   public constructor(private readonly aggregator: FeedAggregator) {}
