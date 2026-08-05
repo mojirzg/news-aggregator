@@ -53,13 +53,6 @@ export const PreferencesForm = ({
         <AuthorPreferences value={form.draft} onChange={form.setDraft} />
       </section>
       <div className={styles.actions}>
-        {form.saved ? (
-          <span className={styles.saved} role="status">
-            Preferences saved
-          </span>
-        ) : (
-          <span />
-        )}
         <Button
           type="button"
           variant="secondary"
@@ -76,6 +69,15 @@ export const PreferencesForm = ({
           Reset
         </Button>
         <Button type="submit">Save preferences</Button>
+        {form.saved ? (
+          <span className={styles.saved} role="status">
+            Preferences saved
+          </span>
+        ) : (
+          <span className={styles.saved} role="status">
+            Preferences saved
+          </span>
+        )}
       </div>
     </form>
   );

@@ -10,6 +10,12 @@
   border: 1px solid var(--color-text-muted);
 }
 
+.label {
+  display: block;
+  margin-bottom: 4px;
+  opacity: 0.6;
+}
+
 .hasEndAdornment {
   padding-right: 2.75rem;
 }
