@@ -1,2 +1,1 @@
-export { useFeedQuery } from './model/use-feed-query';
-export { feedQueryOptions } from './model/feed-query-options';
+export { useFeedQuery, feedQueryOptions } from './model/use-feed-query';

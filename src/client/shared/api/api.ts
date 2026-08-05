@@ -1,5 +1,4 @@
 import type { z } from 'zod';
-import { ApiError } from './api-error';
 
 export const parseApiResponse = async <T>(
   response: Response,
@@ -23,4 +22,28 @@ export const parseApiResponse = async <T>(
     );
   }
   return schema.parse(payload);
+};
+
+export class ApiError extends Error {
+  public constructor(
+    message: string,
+    public readonly status: number,
+    public readonly code?: string,
+    public readonly requestId?: string,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+export const getJson = async <T>(
+  url: string,
+  schema: z.ZodType<T>,
+  signal?: AbortSignal,
+): Promise<T> => {
+  const response = await fetch(url, {
+    signal,
+    headers: { Accept: 'application/json' },
+  });
+  return parseApiResponse(response, schema);
 };

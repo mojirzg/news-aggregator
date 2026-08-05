@@ -1,8 +1,10 @@
 import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { ArticleFilters } from '@contracts/index';
-import { filtersToSearchParams } from '@client/shared/lib/search-params/filters-to-search-params';
-import { searchParamsToFilters } from '@client/shared/lib/search-params/search-params-to-filters';
+import {
+  filtersToSearchParams,
+  searchParamsToFilters,
+} from '@client/shared/lib/search-params/search-params';
 
 export const useArticleFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();

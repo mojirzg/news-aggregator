@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { filtersToSearchParams } from './filters-to-search-params';
-import { searchParamsToFilters } from './search-params-to-filters';
+import { filtersToSearchParams, searchParamsToFilters } from './search-params';
 
 describe('filter URL serialization', () => {
   it('round-trips supported filters', () => {

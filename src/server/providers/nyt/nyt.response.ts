@@ -14,8 +14,10 @@ const categoryBySection: Record<string, Category> = {
   Arts: 'entertainment',
 };
 
+const NYT_IMAGE_BASE_URL = 'https://www.nytimes.com';
+
 const nytImageSchema = z.object({
-  url: z.string().url(),
+  url: z.string(),
   height: z.number().nonnegative(),
   width: z.number().nonnegative(),
 });
@@ -93,15 +95,22 @@ export const nytResponseSchema = z.object({
 
 export type NytResponse = z.infer<typeof nytResponseSchema>;
 
-const imageUrl = (item?: NytMultimedia) => {
-  const img = item?.thumbnail?.url ?? item?.default?.url;
-  if (!img) return undefined;
-  return img.startsWith('http') ? img : `https://www.nytimes.com/${img}`;
-};
+const getNytImageUrl = (multimedia?: NytMultimedia): string | undefined => {
+  const rawUrl = multimedia?.thumbnail?.url ?? multimedia?.default?.url;
 
+  if (!rawUrl?.trim()) {
+    return undefined;
+  }
+
+  try {
+    return new URL(rawUrl, NYT_IMAGE_BASE_URL).href;
+  } catch {
+    return undefined;
+  }
+};
 export const mapNytResponse = (payload: NytResponse): Article[] =>
   payload.response.docs.map((item: NytDocument) => {
-    const image = imageUrl(item.multimedia);
+    const image = getNytImageUrl(item.multimedia);
     const description = item.abstract ?? item.snippet ?? undefined;
     const author = item.byline?.original?.replace(/^By\s+/i, '') || undefined;
     return {
