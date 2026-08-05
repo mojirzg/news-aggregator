@@ -6,29 +6,47 @@ import type { NewsProvider } from '@server/providers/news-provider';
 import { NewsApiProvider } from '@server/providers/newsapi/newsapi.provider';
 import { NytProvider } from '@server/providers/nyt/nyt.provider';
 
-const createLiveProvider = (id: ProviderId): NewsProvider | null => {
-  if (id === 'guardian' && serverEnv.GUARDIAN_API_KEY)
-    return new GuardianProvider(serverEnv.GUARDIAN_API_KEY);
-  if (id === 'nyt' && serverEnv.NYT_API_KEY)
-    return new NytProvider(serverEnv.NYT_API_KEY);
-  if (id === 'newsapi' && serverEnv.NEWS_API_KEY)
-    return new NewsApiProvider(serverEnv.NEWS_API_KEY);
-  return null;
-};
+interface ProviderDefinition {
+  getApiKey: () => string | undefined;
+  create: (apiKey: string) => NewsProvider;
+}
 
-export const createProviderRegistry = (): ReadonlyMap<
-  ProviderId,
-  NewsProvider
-> => {
-  const ids: ProviderId[] = ['guardian', 'nyt', 'newsapi'];
-  const entries = ids.map((id): [ProviderId, NewsProvider] => {
-    if (serverEnv.NEWS_PROVIDER_MODE === 'mock')
-      return [id, new MockProvider(id)];
-    const live = createLiveProvider(id);
-    if (live) return [id, live];
-    if (serverEnv.NEWS_PROVIDER_MODE === 'auto')
-      return [id, new MockProvider(id)];
-    throw new Error(`Missing API key for ${id} while NEWS_PROVIDER_MODE=live`);
-  });
+const providerDefinitions = {
+  guardian: {
+    getApiKey: () => serverEnv.GUARDIAN_API_KEY,
+    create: (apiKey: string) => new GuardianProvider(apiKey),
+  },
+  nyt: {
+    getApiKey: () => serverEnv.NYT_API_KEY,
+    create: (apiKey: string) => new NytProvider(apiKey),
+  },
+  newsapi: {
+    getApiKey: () => serverEnv.NEWS_API_KEY,
+    create: (apiKey: string) => new NewsApiProvider(apiKey),
+  },
+} satisfies Record<ProviderId, ProviderDefinition>;
+
+export const createProviderRegistry = (): ReadonlyMap<ProviderId, NewsProvider> => {
+  const entries = Object.entries(providerDefinitions).map(
+    ([providerId, definition]): [ProviderId, NewsProvider] => {
+      const id = providerId as ProviderId;
+
+      if (serverEnv.NEWS_PROVIDER_MODE === 'mock') {
+        return [id, new MockProvider(id)];
+      }
+
+      const apiKey = definition.getApiKey();
+      if (apiKey) {
+        return [id, definition.create(apiKey)];
+      }
+
+      if (serverEnv.NEWS_PROVIDER_MODE === 'auto') {
+        return [id, new MockProvider(id)];
+      }
+
+      throw new Error(`Missing API key for ${id} while NEWS_PROVIDER_MODE=live`);
+    },
+  );
+
   return new Map(entries);
 };

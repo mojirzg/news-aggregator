@@ -2,16 +2,16 @@
   "name": "innoscripta-news-aggregator",
   "private": true,
   "version": "1.0.0",
-  "description": "Production-oriented React + TypeScript news aggregator take-home assessment.",
+  "description": "React and TypeScript news aggregator take-home assessment.",
   "type": "module",
   "engines": {
     "node": ">=22.0.0"
   },
   "scripts": {
-    "dev": "concurrently -k -n server,client -c yellow,cyan \"npm:dev:server\" \"npm:dev:client\"",
+    "dev": "concurrently -k -n server,client -c yellow,cyan \"pnpm dev:server\" \"pnpm dev:client\"",
     "dev:client": "vite",
     "dev:server": "tsx watch --env-file-if-exists=.env --env-file-if-exists=.env.local src/server/index.ts",
-    "build": "npm run clean && npm run build:client && npm run build:server",
+    "build": "pnpm clean && pnpm build:client && pnpm build:server",
     "build:client": "vite build",
     "build:server": "tsup src/server/index.ts --tsconfig tsconfig.server.json --format esm --platform node --target node22 --out-dir dist/server --sourcemap",
     "start": "node --env-file-if-exists=.env --env-file-if-exists=.env.local dist/server/index.js",
@@ -22,7 +22,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "check": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
@@ -67,5 +67,6 @@
     "vite": "^8.2.0",
     "vite-plugin-mkcert": "^2.1.0",
     "vitest": "^3.2.4"
-  }
+  },
+  "packageManager": "pnpm@10.15.1"
 }

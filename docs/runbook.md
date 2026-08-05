@@ -25,8 +25,8 @@ This is a degraded but valid state. The BFF returns HTTP 200, successful article
 Run:
 
 ```bash
-npm ci
-npm run check
+pnpm install --frozen-lockfile
+pnpm check
 ```
 
 Do not bypass a failing type, test, or architecture gate for the submission.

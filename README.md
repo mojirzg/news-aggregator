@@ -1,6 +1,6 @@
 # Signal News — innoscripta Frontend Take-Home
 
-A production-oriented news aggregator built as a **modular monolith**: one React application, one Node BFF, one Docker container, and three provider adapters.
+A news aggregator built as a **modular monolith**: one React application, one Node BFF, one Docker container, and three provider adapters.
 
 ## What is implemented
 
@@ -17,20 +17,21 @@ A production-oriented news aggregator built as a **modular monolith**: one React
 ## Prerequisites
 
 - Node.js 22+
-- npm 10+
+- pnpm 10+
 - Docker 24+ for container execution
 
 ## Local setup
 
 ```bash
 cp .env.example .env
-npm install
-npm run dev
+corepack enable
+pnpm install --frozen-lockfile
+pnpm dev
 ```
 
 Open `http://localhost:5173`. Vite proxies `/api` requests to the BFF on port `3000`.
 
-After the first install, commit the generated `package-lock.json`. CI and Docker prefer `npm ci` when the lock file is present and fall back to `npm install` only for this generated starter archive.
+The committed `pnpm-lock.yaml` is used by local development, CI, and Docker for deterministic installs.
 
 ## Provider modes
 
@@ -49,15 +50,15 @@ NEWS_API_KEY=
 ## Commands
 
 ```bash
-npm run dev          # client + BFF with watch mode
-npm run lint         # ESLint + architecture boundaries
-npm run typecheck    # strict client/server TypeScript checks
-npm test             # Vitest unit and module tests
-npx playwright install chromium # one-time browser setup
-npm run test:e2e     # Playwright desktop + mobile journeys
-npm run build        # production client and server bundles
-npm run check        # complete quality gate
-npm start            # serve built BFF and React assets
+pnpm dev          # client + BFF with watch mode
+pnpm lint         # ESLint + architecture boundaries
+pnpm typecheck    # strict client/server TypeScript checks
+pnpm test         # Vitest unit and module tests
+pnpm exec playwright install chromium # one-time browser setup
+pnpm test:e2e     # Playwright desktop + mobile journeys
+pnpm build        # production client and server bundles
+pnpm check        # complete quality gate
+pnpm start        # serve built BFF and React assets
 ```
 
 ## Docker
@@ -105,4 +106,4 @@ Details and trade-offs are documented in [docs/architecture.md](docs/architectur
 - NewsAPI category filtering is translated into query terms because its `everything` endpoint does not expose the same category semantics as the other providers.
 - Live API quotas and development-plan restrictions remain provider-specific.
 
-These are explicit scope decisions, not accidental omissions.
+These items were excluded to keep the assessment focused; the trade-offs are documented in the ADRs.

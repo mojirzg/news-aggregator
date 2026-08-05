@@ -80,7 +80,7 @@ export const AuthorPreferences = ({
           disabled={!authorInput.trim()}
           onClick={addAuthor}
         >
-          <label>Add Author</label>
+          <span>Add author</span>
           <Plus aria-hidden="true" />
         </button>
       </div>

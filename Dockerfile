@@ -1,19 +1,20 @@
 # syntax=docker/dockerfile:1.7
 FROM node:22.16.0-alpine AS dependencies
 WORKDIR /app
-COPY package*.json ./
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+RUN corepack enable
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 
 FROM dependencies AS build
 COPY . .
-RUN npm run check
+RUN pnpm check
 
 FROM node:22.16.0-alpine AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
-RUN addgroup -S app && adduser -S app -G app
-COPY package*.json ./
-RUN if [ -f package-lock.json ]; then npm ci --omit=dev --ignore-scripts; else npm install --omit=dev --ignore-scripts; fi && npm cache clean --force
+RUN corepack enable && addgroup -S app && adduser -S app -G app
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --prod --frozen-lockfile --ignore-scripts && pnpm store prune
 COPY --from=build /app/dist ./dist
 USER app
 EXPOSE 3000

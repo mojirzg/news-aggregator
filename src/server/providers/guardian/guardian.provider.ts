@@ -53,9 +53,6 @@ export class GuardianProvider implements NewsProvider {
         buildGuardianUrl(filters, this.apiKey),
         signal,
       );
-      console.log(
-        `Fetched ${response.response.results.length} articles from The Guardian`,
-      );
       return mapGuardianResponse(response);
     } catch (error) {
       throw new ProviderError(this.id, 'The Guardian request failed.', {

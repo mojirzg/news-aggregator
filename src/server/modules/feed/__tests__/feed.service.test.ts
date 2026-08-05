@@ -98,6 +98,7 @@ describe('FeedService', () => {
         providerId: 'nyt',
         status: 'error',
         articleCount: 0,
+        errorCode: 'unknown',
         errorMessage: 'This source is temporarily unavailable.',
       },
       {
@@ -173,7 +174,7 @@ describe('FeedService', () => {
       (_filters, signal) =>
         new Promise<Article[]>((_, reject) => {
           const rejectFromAbort = (): void => {
-            reject(new Error(signal.reason));
+            reject(signal.reason);
           };
 
           if (signal.aborted) {
@@ -212,6 +213,7 @@ describe('FeedService', () => {
         providerId: 'guardian',
         status: 'error',
         articleCount: 0,
+        errorCode: 'timeout',
         errorMessage: 'This source is temporarily unavailable.',
       },
       {
@@ -263,7 +265,7 @@ describe('FeedService', () => {
 
     const filters: ArticleFilters = {
       ...defaultFilters,
-      authors: ['maya', 'ALEX'],
+      authors: ['Maya Chen', 'DR. ALEX MORGAN'],
     };
 
     const service = new FeedService(providers, 1_000);
@@ -332,6 +334,28 @@ describe('FeedService', () => {
     expect(result.articles.map(({ id }) => id)).toEqual(['new', 'old']);
 
     expect(providerArticles.map(({ id }) => id)).toEqual(originalOrder);
+  });
+
+  it('rethrows request cancellation instead of reporting a provider outage', async () => {
+    const controller = new AbortController();
+    const abortedFetch = vi.fn<NewsProvider['fetchArticles']>(
+      (_filters, signal) =>
+        new Promise<Article[]>((_, reject) => {
+          signal.addEventListener('abort', () => reject(signal.reason), {
+            once: true,
+          });
+        }),
+    );
+
+    const providers = new Map<ProviderId, NewsProvider>([
+      ['guardian', createProvider('guardian', abortedFetch)],
+    ]);
+    const service = new FeedService(providers, 1_000);
+    const result = service.getFeed(defaultFilters, controller.signal);
+
+    controller.abort(new DOMException('Request cancelled', 'AbortError'));
+
+    await expect(result).rejects.toMatchObject({ name: 'AbortError' });
   });
 
   it('returns an empty valid feed when no providers are registered', async () => {

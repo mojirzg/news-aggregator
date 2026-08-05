@@ -28,4 +28,4 @@ Desktop Chromium and a mobile Chromium profile run in CI.
 
 ## Quality gate
 
-`npm run check` runs lint, architecture boundaries, strict type checks, unit tests, client build, and server build. Docker build repeats the gate before producing a runtime image.
+`pnpm check` runs lint, architecture boundaries, strict type checks, unit tests, client build, and server build. Docker build repeats the gate before producing a runtime image.

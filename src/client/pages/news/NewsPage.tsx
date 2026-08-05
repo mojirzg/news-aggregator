@@ -5,7 +5,7 @@ import {
   DesktopFilters,
   MobileFilterDrawer,
 } from '@client/widgets/filters-panel';
-import { NewsFeedContainer } from './NewsFeedContainer';
+import { NewsFeedContainer } from '@client/widgets/news-feed';
 import styles from './NewsPage.module.css';
 import { useOutletContext } from 'react-router-dom';
 import { useCallback, useEffect, useState } from 'react';

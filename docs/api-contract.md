@@ -55,3 +55,7 @@ Errors use this envelope:
   }
 }
 ```
+
+## Provider failures
+
+Provider failures keep successful articles from other sources. Failed provider entries include a safe `errorCode` (`timeout`, `rate_limited`, `unauthorized`, `invalid_response`, `network_error`, `aborted`, or `unknown`) and a generic user-facing `errorMessage`. Raw upstream response bodies and credentials are never returned to the client.

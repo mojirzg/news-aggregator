@@ -59,7 +59,6 @@ export class NytProvider implements NewsProvider {
 
       return mapNytResponse(payload);
     } catch (error) {
-      console.log('NytProvider.fetchArticles error:', error);
       throw new ProviderError(this.id, 'The New York Times request failed.', {
         cause: error,
       });

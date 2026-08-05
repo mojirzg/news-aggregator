@@ -1,11 +1,15 @@
+import { z } from 'zod';
 import type {
   Article,
   ArticleFilters,
   FeedResponse,
+  ProviderFailureCode,
   ProviderId,
   ProviderResult,
 } from '@contracts/index';
 import type { NewsProvider } from '@server/providers/news-provider';
+import { ProviderError } from '@server/providers/provider-errors';
+import { HttpError } from '@server/shared/http/http-error';
 import { logger } from '@server/shared/logging/logger';
 import { withTimeoutSignal } from '@server/shared/resilience/with-timeout';
 
@@ -23,10 +27,14 @@ const createProviderSuccess = (
   articleCount,
 });
 
-const createProviderFailure = (providerId: ProviderId): ProviderResult => ({
+const createProviderFailure = (
+  providerId: ProviderId,
+  errorCode: ProviderFailureCode,
+): ProviderResult => ({
   providerId,
   status: 'error',
   articleCount: 0,
+  errorCode,
   errorMessage: 'This source is temporarily unavailable.',
 });
 
@@ -38,6 +46,9 @@ const sortArticlesByPublishedAt = (articles: Article[]): Article[] =>
     return dateDifference || left.id.localeCompare(right.id);
   });
 
+const normalizeAuthor = (value: string): string =>
+  value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('en-US');
+
 const filterArticlesByAuthor = (
   articles: Article[],
   authors: string[],
@@ -46,18 +57,46 @@ const filterArticlesByAuthor = (
     return articles;
   }
 
-  const normalizedAuthors = authors.map((author) => author.toLowerCase());
+  const normalizedAuthors = new Set(authors.map(normalizeAuthor));
 
-  return articles.filter((article) => {
-    const author = article.author?.toLowerCase();
+  return articles.filter(
+    (article) =>
+      article.author !== undefined &&
+      normalizedAuthors.has(normalizeAuthor(article.author)),
+  );
+};
 
-    return (
-      author !== undefined &&
-      normalizedAuthors.some((expectedAuthor) =>
-        author.includes(expectedAuthor),
-      )
-    );
-  });
+const unwrapCause = (error: unknown): unknown =>
+  error instanceof ProviderError && error.cause !== undefined
+    ? error.cause
+    : error;
+
+const classifyProviderFailure = (error: unknown): ProviderFailureCode => {
+  const cause = unwrapCause(error);
+
+  if (cause instanceof DOMException && cause.name === 'TimeoutError') {
+    return 'timeout';
+  }
+
+  if (cause instanceof DOMException && cause.name === 'AbortError') {
+    return 'aborted';
+  }
+
+  if (cause instanceof HttpError) {
+    if (cause.status === 401 || cause.status === 403) return 'unauthorized';
+    if (cause.status === 429) return 'rate_limited';
+    return 'network_error';
+  }
+
+  if (cause instanceof z.ZodError) {
+    return 'invalid_response';
+  }
+
+  if (cause instanceof TypeError) {
+    return 'network_error';
+  }
+
+  return 'unknown';
 };
 
 export class FeedService {
@@ -114,9 +153,16 @@ export class FeedService {
         provider: createProviderSuccess(provider.id, articles.length),
       };
     } catch (error) {
+      if (requestSignal.aborted) {
+        throw error;
+      }
+
+      const errorCode = classifyProviderFailure(error);
+
       logger.warn(
         {
           providerId: provider.id,
+          errorCode,
           errorName: error instanceof Error ? error.name : 'UnknownError',
           errorMessage:
             error instanceof Error ? error.message : 'Unknown provider failure',
@@ -126,7 +172,7 @@ export class FeedService {
 
       return {
         articles: [],
-        provider: createProviderFailure(provider.id),
+        provider: createProviderFailure(provider.id, errorCode),
       };
     } finally {
       timeout.dispose();

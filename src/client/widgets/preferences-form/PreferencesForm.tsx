@@ -1,4 +1,4 @@
-import type { FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import type { FeedPreferences } from '@client/entities/feed-preferences';
 import {
   usePreferencesForm,
@@ -20,9 +20,16 @@ export const PreferencesForm = ({
   onReset: () => void;
 }) => {
   const form = usePreferencesForm(initial);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const submit = () => {
     const result = validatePreferences(form.draft);
-    if (!result.success) return;
+    if (!result.success) {
+      setValidationError(
+        'Preferences could not be saved. Review the selected values and try again.',
+      );
+      return;
+    }
+    setValidationError(null);
     onSave(result.data);
     form.markSaved();
   };
@@ -73,12 +80,13 @@ export const PreferencesForm = ({
           <span className={styles.saved} role="status">
             Preferences saved
           </span>
-        ) : (
-          <span className={styles.saved} role="status">
-            Preferences saved
-          </span>
-        )}
+        ) : null}
       </div>
+      {validationError ? (
+        <p role="alert" className={styles.error}>
+          {validationError}
+        </p>
+      ) : null}
     </form>
   );
 };

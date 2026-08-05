@@ -1,24 +1,7 @@
-.feedContainer {
-  width: 100%;
-}
-
 .feed {
-  position: relative;
+  display: grid;
+  gap: 16px;
   width: 100%;
-}
-
-.virtualRow {
-  position: absolute;
-  top: 0;
-  left: 0;
-
-  width: 100%;
-  padding-bottom: 16px;
-
-  /*
-   * Helps the browser isolate row layout and paint work.
-   */
-  contain: layout paint;
 }
 
 .skeletonCard {
