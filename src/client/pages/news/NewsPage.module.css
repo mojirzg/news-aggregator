@@ -47,9 +47,6 @@
   }
 }
 @media (max-width: 620px) {
-  .page {
-    padding-top: 28px;
-  }
   .searchRow {
     grid-template-columns: 1fr auto;
   }

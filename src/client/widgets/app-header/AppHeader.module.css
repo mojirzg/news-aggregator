@@ -49,8 +49,10 @@
   .inner {
     min-height: 64px;
     gap: 10px;
+    justify-content: space-between;
   }
-  .brandText {
+  .brandText,
+  .brand {
     display: none;
   }
   .link {

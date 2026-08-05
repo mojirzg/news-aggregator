@@ -1,34 +1,32 @@
-import type { InputHTMLAttributes } from 'react';
-import { useId } from 'react';
+import { forwardRef, type InputHTMLAttributes, type ReactNode } from 'react';
 import styles from './Input.module.css';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
-  label?: string;
-  hint?: string;
+  endAdornment?: ReactNode;
 }
 
-export const Input = ({
-  label,
-  hint,
-  id,
-  className = '',
-  ...props
-}: InputProps) => {
-  const generatedId = useId();
-  const inputId = id ?? generatedId;
-  return (
-    <div className={styles.group}>
-      {label ? (
-        <label className={styles.label} htmlFor={inputId}>
-          {label}
-        </label>
-      ) : null}
+export const Input = forwardRef<HTMLInputElement, InputProps>(
+  ({ endAdornment, className = '', ...inputProps }, ref) => (
+    <div className={styles.container}>
       <input
-        id={inputId}
-        className={`${styles.input} ${className}`}
-        {...props}
+        ref={ref}
+        className={[
+          styles.input,
+          endAdornment ? styles.hasEndAdornment : '',
+          className,
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        {...inputProps}
       />
-      {hint ? <span className={styles.hint}>{hint}</span> : null}
+
+      {endAdornment ? (
+        <span className={styles.endAdornment} aria-hidden="true">
+          {endAdornment}
+        </span>
+      ) : null}
     </div>
-  );
-};
+  ),
+);
+
+Input.displayName = 'Input';

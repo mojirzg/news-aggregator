@@ -2,8 +2,18 @@ import { Link } from 'react-router-dom';
 import { routes } from '@client/shared/config/routes';
 import { AppNavigation } from './AppNavigation';
 import styles from './AppHeader.module.css';
-
-export const AppHeader = () => (
+import { Button } from '@client/shared/ui/Button';
+import { SlidersHorizontal } from 'lucide-react';
+interface AppHeaderProps {
+  showFilterButton?: boolean;
+  filtersOpen?: boolean;
+  onOpenFilters?: () => void;
+}
+export const AppHeader = ({
+  showFilterButton = false,
+  filtersOpen = false,
+  onOpenFilters,
+}: AppHeaderProps) => (
   <header className={styles.header}>
     <div className={`container ${styles.inner}`}>
       <Link
@@ -14,6 +24,18 @@ export const AppHeader = () => (
         <span className={styles.brandText}>Signal News</span>
       </Link>
       <AppNavigation />
+      {showFilterButton && onOpenFilters ? (
+        <Button
+          type="button"
+          variant="ghost"
+          aria-haspopup="dialog"
+          aria-expanded={filtersOpen}
+          aria-controls="mobile-filter-drawer"
+          onClick={onOpenFilters}
+        >
+          <SlidersHorizontal />
+        </Button>
+      ) : null}
     </div>
   </header>
 );
