@@ -60,3 +60,11 @@
     font-size: 0.82rem;
   }
 }
+.filterButton {
+  display: none;
+}
+@media (max-width: 900px) {
+  .filterButton {
+    display: block;
+  }
+}

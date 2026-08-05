@@ -13,7 +13,7 @@ export const DateFilter = ({
       display: 'flex',
       flexDirection: 'column',
       gridTemplateColumns: '1fr 1fr',
-      gap: 10,
+      gap: 6,
     }}
   >
     <Input

@@ -17,7 +17,7 @@ export const SourceFilter = ({
   };
 
   return (
-    <div style={{ display: 'grid', gap: 10 }}>
+    <div style={{ display: 'grid', gap: 6 }}>
       {providerOptions.map((option) => (
         <Checkbox
           key={option.id}

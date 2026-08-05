@@ -31,6 +31,7 @@ export const AppHeader = ({
           aria-haspopup="dialog"
           aria-expanded={filtersOpen}
           aria-controls="mobile-filter-drawer"
+          className={styles.filterButton}
           onClick={onOpenFilters}
         >
           <SlidersHorizontal />

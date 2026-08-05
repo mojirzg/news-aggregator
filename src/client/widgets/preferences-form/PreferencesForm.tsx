@@ -57,7 +57,9 @@ export const PreferencesForm = ({
           <span className={styles.saved} role="status">
             Preferences saved
           </span>
-        ) : null}
+        ) : (
+          <span />
+        )}
         <Button
           type="button"
           variant="secondary"

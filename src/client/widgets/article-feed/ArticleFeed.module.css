@@ -1,21 +1,71 @@
-.feed {
-  display: grid;
-  gap: 16px;
+.feedContainer {
+  width: 100%;
 }
+
+.feed {
+  position: relative;
+  width: 100%;
+}
+
+.virtualRow {
+  position: absolute;
+  top: 0;
+  left: 0;
+
+  width: 100%;
+  padding-bottom: 16px;
+
+  /*
+   * Helps the browser isolate row layout and paint work.
+   */
+  contain: layout paint;
+}
+
 .skeletonCard {
   display: grid;
   grid-template-columns: 230px 1fr;
   gap: 22px;
   padding: 18px;
+
   background: white;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
 }
+
 .skeletonBody {
   display: grid;
   align-content: start;
   gap: 12px;
 }
+
+@media (min-width: 900px) {
+  .feedContainer {
+    max-height: calc(100vh - 180px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+
+    /*
+     * Stable scrollbar prevents horizontal layout shifts when the
+     * feed changes between short and long result sets.
+     */
+    scrollbar-gutter: stable;
+  }
+}
+
+@media (max-width: 899px) {
+  /*
+   * This implementation needs a dedicated scroll container on all
+   * viewport sizes. Without overflow and a bounded height, the
+   * virtualizer cannot determine a useful viewport.
+   */
+  .feedContainer {
+    height: calc(100dvh - 160px);
+    min-height: 400px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
 @media (max-width: 700px) {
   .skeletonCard {
     grid-template-columns: 1fr;

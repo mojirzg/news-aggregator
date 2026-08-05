@@ -3,11 +3,17 @@ import styles from './Input.module.css';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   endAdornment?: ReactNode;
+  label?: string;
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ endAdornment, className = '', ...inputProps }, ref) => (
+  ({ endAdornment, label, className = '', ...inputProps }, ref) => (
     <div className={styles.container}>
+      {label && (
+        <label className={styles.label} htmlFor={inputProps.id}>
+          {label}
+        </label>
+      )}
       <input
         ref={ref}
         className={[

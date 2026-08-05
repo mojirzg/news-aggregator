@@ -17,7 +17,7 @@ export const CategoryFilter = ({
   };
 
   return (
-    <div style={{ display: 'grid', gap: 10 }}>
+    <div style={{ display: 'grid', gap: 6 }}>
       {categoryOptions.map((option) => (
         <Checkbox
           key={option.id}
