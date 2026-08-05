@@ -1,14 +1,14 @@
 import type { ArticleFilters } from '@contracts/index';
-import type { AppOutletContext } from '@client/app/app-outlet-context';
+import type { AppOutletContext } from '@client/shared/lib/router/app-outlet-context';
 import { useArticleFilters } from '@client/features/filter-articles';
 import {
   DesktopFilters,
   MobileFilterDrawer,
 } from '@client/widgets/filters-panel';
 import { NewsFeedContainer } from '@client/widgets/news-feed';
-import styles from './NewsPage.module.css';
 import { useOutletContext } from 'react-router-dom';
 import { useCallback, useEffect, useState } from 'react';
+import styles from './NewsPage.module.css';
 
 const emptyFilters: ArticleFilters = {
   query: '',

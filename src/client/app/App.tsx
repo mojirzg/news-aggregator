@@ -1,4 +1,4 @@
-import type { AppOutletContext } from './app-outlet-context';
+import type { AppOutletContext } from '../shared/lib/router/app-outlet-context';
 import { matchPath, Outlet, useLocation } from 'react-router-dom';
 import { AppHeader } from '@client/widgets/app-header';
 import { useCallback, useEffect, useState } from 'react';
