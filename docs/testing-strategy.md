@@ -21,7 +21,6 @@ Playwright covers:
 - keyword search and URL synchronization;
 - filtered URL reload;
 - preference persistence and personalized feed request;
-- mobile filter drawer apply/reset behavior;
 - partial-provider warning while successful articles remain visible.
 
 Desktop Chromium and a mobile Chromium profile run in CI.
