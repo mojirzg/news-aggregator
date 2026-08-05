@@ -4,6 +4,7 @@
   justify-content: center;
   gap: 8px;
   min-height: 42px;
+  min-width: fit-content;
   padding: 9px 15px;
   border: 1px solid transparent;
   border-radius: 10px;

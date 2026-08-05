@@ -10,6 +10,8 @@
   color: #075985;
   font-size: 0.82rem;
   font-weight: 700;
+  min-width: fit-content;
+  white-space: nowrap;
 }
 .remove {
   border: 0;

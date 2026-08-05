@@ -29,7 +29,9 @@ export const ArticleToolbar = ({
 }) => (
   <div className={styles.toolbar}>
     <div className={styles.filters}>
-      <ActiveFilterChips filters={filters} onChange={onChange} />
+      <div className={styles.chipsContainer}>
+        <ActiveFilterChips filters={filters} onChange={onChange} />
+      </div>
       {hasFilters(filters) ? <ClearFiltersButton onClick={onClear} /> : null}
     </div>
     <ResultsCount count={count} fetching={fetching} />

@@ -40,7 +40,17 @@
   .desktop {
     display: none;
   }
+  .header {
+    display: none;
+  }
+  .panel {
+    border: none;
+  }
   .mobileTriggerContainer {
     display: block;
+  }
+  .actions {
+    position: sticky;
+    bottom: 8px;
   }
 }

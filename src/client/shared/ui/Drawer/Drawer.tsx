@@ -6,6 +6,7 @@ import type {
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './Drawer.module.css';
+import { X } from 'lucide-react';
 
 interface DrawerProps {
   open: boolean;
@@ -193,8 +194,6 @@ export const Drawer = ({
         tabIndex={-1}
         onTransitionEnd={handleDrawerTransitionEnd}
       >
-        <div className={styles.handle} aria-hidden="true" />
-
         <header className={styles.header}>
           <div className={styles.headingGroup}>
             <h2 id={titleId} className={styles.title}>
@@ -213,7 +212,7 @@ export const Drawer = ({
             aria-label={closeLabel}
             onClick={onClose}
           >
-            <span aria-hidden="true">×</span>
+            <X />
           </button>
         </header>
 

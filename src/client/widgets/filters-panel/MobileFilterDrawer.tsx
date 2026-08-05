@@ -5,6 +5,7 @@ import { Button } from '@client/shared/ui/Button';
 import { Drawer } from '@client/shared/ui/Drawer';
 import { FiltersPanel } from './FiltersPanel';
 import styles from './FiltersPanel.module.css';
+import { SlidersHorizontal } from 'lucide-react';
 
 export const MobileFilterDrawer = ({
   filters,
@@ -15,10 +16,12 @@ export const MobileFilterDrawer = ({
 }) => {
   const [open, setOpen] = useState(false);
   const { draft, setDraft, resetDraft } = useFilterDraft(filters);
+
   const close = useCallback(() => {
     resetDraft();
     setOpen(false);
   }, [resetDraft]);
+
   const apply = useCallback(() => {
     onApply(draft);
     setOpen(false);
@@ -28,7 +31,7 @@ export const MobileFilterDrawer = ({
     <>
       <div className={styles.mobileTriggerContainer}>
         <Button type="button" variant="secondary" onClick={() => setOpen(true)}>
-          Filters
+          <SlidersHorizontal />
         </Button>
       </div>
       <Drawer open={open} title="Filter articles" onClose={close}>
