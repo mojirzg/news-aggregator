@@ -11,9 +11,6 @@ export const AppHeader = () => (
         to={routes.news}
         aria-label="Signal News home"
       >
-        <span className={styles.logo} aria-hidden="true">
-          S
-        </span>
         <span className={styles.brandText}>Signal News</span>
       </Link>
       <AppNavigation />

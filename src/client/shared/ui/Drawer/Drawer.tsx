@@ -1,5 +1,10 @@
-import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
-import { useEffect, useRef } from 'react';
+import type {
+  PointerEvent as ReactPointerEvent,
+  ReactNode,
+  TransitionEvent as ReactTransitionEvent,
+} from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import styles from './Drawer.module.css';
 
 interface DrawerProps {
@@ -7,7 +12,12 @@ interface DrawerProps {
   title: string;
   onClose: () => void;
   children: ReactNode;
+  description?: string;
+  footer?: ReactNode;
+  closeLabel?: string;
 }
+
+const EXIT_ANIMATION_DURATION_MS = 320;
 
 const focusableSelector = [
   'a[href]',
@@ -18,86 +28,200 @@ const focusableSelector = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(',');
 
-export const Drawer = ({ open, title, onClose, children }: DrawerProps) => {
+const getFocusableElements = (container: HTMLElement): HTMLElement[] =>
+  [...container.querySelectorAll<HTMLElement>(focusableSelector)].filter(
+    (element) =>
+      !element.hasAttribute('hidden') &&
+      element.getAttribute('aria-hidden') !== 'true',
+  );
+
+export const Drawer = ({
+  open,
+  title,
+  onClose,
+  children,
+  description,
+  footer,
+  closeLabel = 'Close drawer',
+}: DrawerProps) => {
+  const titleId = useId();
+  const descriptionId = useId();
   const dialogRef = useRef<HTMLElement | null>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  const [isMounted, setIsMounted] = useState(open);
+  const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    if (!open) return undefined;
+    if (!open) {
+      setIsVisible(false);
+      return undefined;
+    }
 
-    const previouslyFocused =
+    setIsMounted(true);
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      setIsVisible(true);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (open || !isMounted) return undefined;
+
+    const timeout = window.setTimeout(() => {
+      setIsMounted(false);
+    }, EXIT_ANIMATION_DURATION_MS);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [isMounted, open]);
+
+  useEffect(() => {
+    if (!isMounted) return undefined;
+
+    previouslyFocusedRef.current =
       document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null;
-    const dialog = dialogRef.current;
-    const focusable = () => [
-      ...(dialog?.querySelectorAll<HTMLElement>(focusableSelector) ?? []),
-    ];
-    const animationFrame = window.requestAnimationFrame(() =>
-      focusable()[0]?.focus(),
-    );
 
-    const onKeyDown = (event: KeyboardEvent) => {
+    const body = document.body;
+    const previousOverflow = body.style.overflow;
+    body.style.overflow = 'hidden';
+
+    return () => {
+      body.style.overflow = previousOverflow;
+      previouslyFocusedRef.current?.focus();
+      previouslyFocusedRef.current = null;
+    };
+  }, [isMounted]);
+
+  useEffect(() => {
+    if (!open || !isMounted) return undefined;
+
+    const dialog = dialogRef.current;
+
+    if (!dialog) return undefined;
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      const [firstFocusableElement] = getFocusableElements(dialog);
+      (firstFocusableElement ?? dialog).focus();
+    });
+
+    const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') {
         event.preventDefault();
         onClose();
         return;
       }
+
       if (event.key !== 'Tab') return;
 
-      const elements = focusable();
-      const first = elements[0];
-      const last = elements.at(-1);
-      if (!first || !last) return;
+      const focusableElements = getFocusableElements(dialog);
+      const firstFocusableElement = focusableElements[0];
+      const lastFocusableElement = focusableElements.at(-1);
 
-      if (event.shiftKey && document.activeElement === first) {
+      if (!firstFocusableElement || !lastFocusableElement) {
         event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
+        dialog.focus();
+        return;
+      }
+
+      if (event.shiftKey && document.activeElement === firstFocusableElement) {
         event.preventDefault();
-        first.focus();
+        lastFocusableElement.focus();
+        return;
+      }
+
+      if (!event.shiftKey && document.activeElement === lastFocusableElement) {
+        event.preventDefault();
+        firstFocusableElement.focus();
       }
     };
 
-    document.addEventListener('keydown', onKeyDown);
-    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', handleKeyDown);
 
     return () => {
       window.cancelAnimationFrame(animationFrame);
-      document.removeEventListener('keydown', onKeyDown);
-      document.body.style.overflow = '';
-      previouslyFocused?.focus();
+      document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [onClose, open]);
+  }, [isMounted, onClose, open]);
 
-  if (!open) return null;
-  return (
-    <div
-      className={styles.backdrop}
-      role="presentation"
-      onMouseDown={(event: ReactMouseEvent<HTMLDivElement>) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
+  const handleBackdropPointerDown = (
+    event: ReactPointerEvent<HTMLDivElement>,
+  ): void => {
+    if (event.button !== 0) return;
+    onClose();
+  };
+
+  const handleDrawerTransitionEnd = (
+    event: ReactTransitionEvent<HTMLElement>,
+  ): void => {
+    if (
+      event.target !== event.currentTarget ||
+      event.propertyName !== 'transform'
+    )
+      return;
+
+    if (!open) {
+      setIsMounted(false);
+    }
+  };
+
+  if (!isMounted || typeof document === 'undefined') return null;
+
+  const state = isVisible && open ? 'open' : 'closed';
+
+  return createPortal(
+    <div className={styles.root} data-state={state}>
+      <div
+        className={styles.backdrop}
+        aria-hidden="true"
+        onPointerDown={handleBackdropPointerDown}
+      />
+
       <section
         ref={dialogRef}
         className={styles.drawer}
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-labelledby={titleId}
+        aria-describedby={description ? descriptionId : undefined}
+        tabIndex={-1}
+        onTransitionEnd={handleDrawerTransitionEnd}
       >
+        <div className={styles.handle} aria-hidden="true" />
+
         <header className={styles.header}>
-          <h2 className={styles.title}>{title}</h2>
+          <div className={styles.headingGroup}>
+            <h2 id={titleId} className={styles.title}>
+              {title}
+            </h2>
+            {description ? (
+              <p id={descriptionId} className={styles.description}>
+                {description}
+              </p>
+            ) : null}
+          </div>
+
           <button
-            className={styles.close}
+            className={styles.closeButton}
             type="button"
-            aria-label="Close"
+            aria-label={closeLabel}
             onClick={onClose}
           >
-            ×
+            <span aria-hidden="true">×</span>
           </button>
         </header>
-        {children}
+
+        <div className={styles.content}>{children}</div>
+
+        {footer ? <footer className={styles.footer}>{footer}</footer> : null}
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 };

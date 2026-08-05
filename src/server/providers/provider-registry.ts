@@ -22,9 +22,6 @@ export const createProviderRegistry = (): ReadonlyMap<
 > => {
   const ids: ProviderId[] = ['guardian', 'nyt', 'newsapi'];
   const entries = ids.map((id): [ProviderId, NewsProvider] => {
-    console.log(
-      `Creating provider for ${id} with NEWS_PROVIDER_MODE=${serverEnv.NEWS_PROVIDER_MODE}`,
-    );
     if (serverEnv.NEWS_PROVIDER_MODE === 'mock')
       return [id, new MockProvider(id)];
     const live = createLiveProvider(id);

@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { Article, Category } from '@contracts/index';
 
 type NytDocument = NytResponse['response']['docs'][number];
-type NytMultimedia = NonNullable<NytDocument['multimedia']>;
+type NytMultimedia = z.infer<typeof nytMultimediaSchema>;
 type NytKeyword = NonNullable<NytDocument['keywords']>[number];
 
 const categoryBySection: Record<string, Category> = {
@@ -14,53 +14,95 @@ const categoryBySection: Record<string, Category> = {
   Arts: 'entertainment',
 };
 
+const nytImageSchema = z.object({
+  url: z.string().url(),
+  height: z.number().nonnegative(),
+  width: z.number().nonnegative(),
+});
+
+const nytMultimediaSchema = z
+  .object({
+    caption: z.string().optional().default(''),
+    credit: z.string().optional().default(''),
+    default: nytImageSchema.optional(),
+    thumbnail: nytImageSchema.optional(),
+  })
+  .nullable()
+  .optional();
+
+const nytDocumentSchema = z.object({
+  abstract: z.string().optional().default(''),
+
+  byline: z
+    .object({
+      original: z.string().nullable().optional(),
+    })
+    .optional(),
+
+  document_type: z.string().optional(),
+
+  headline: z.object({
+    main: z.string(),
+    kicker: z.string().nullable().optional(),
+    print_headline: z.string().nullable().optional(),
+  }),
+
+  _id: z.string(),
+
+  keywords: z
+    .array(
+      z.object({
+        name: z.string(),
+        value: z.string(),
+        rank: z.number().optional(),
+      }),
+    )
+    .optional()
+    .default([]),
+
+  multimedia: nytMultimediaSchema,
+
+  news_desk: z.string().nullable().optional(),
+  pub_date: z.string(),
+  section_name: z.string().nullable().optional(),
+  snippet: z.string().optional().default(''),
+  source: z.string().optional().default('The New York Times'),
+  subsection_name: z.string().nullable().optional(),
+  type_of_material: z.string().nullable().optional(),
+  uri: z.string().optional(),
+  web_url: z.string().url(),
+  word_count: z.number().optional(),
+});
+
 export const nytResponseSchema = z.object({
   status: z.string(),
+  copyright: z.string().optional(),
+
   response: z.object({
-    docs: z.array(
-      z.object({
-        _id: z.string(),
-        web_url: z.string().url(),
-        pub_date: z.string(),
-        section_name: z.string().nullable().optional(),
-        subsection_name: z.string().nullable().optional(),
-        headline: z.object({ main: z.string() }),
-        abstract: z.string().nullable().optional(),
-        lead_paragraph: z.string().nullable().optional(),
-        byline: z
-          .object({ original: z.string().nullable().optional() })
-          .optional(),
-        multimedia: z
-          .array(
-            z.object({
-              url: z.string(),
-              type: z.string().optional(),
-              subtype: z.string().optional(),
-            }),
-          )
-          .optional(),
-        keywords: z.array(z.object({ value: z.string() })).optional(),
-      }),
-    ),
+    docs: z.array(nytDocumentSchema),
+
+    metadata: z
+      .object({
+        hits: z.number(),
+        offset: z.number(),
+        time: z.number(),
+      })
+      .optional(),
   }),
 });
 
 export type NytResponse = z.infer<typeof nytResponseSchema>;
 
-const imageUrl = (items: NytMultimedia) => {
-  const item =
-    items.find((entry: NytMultimedia[number]) => entry.subtype === 'xlarge') ??
-    items[0];
-  if (!item) return undefined;
-  return item.url.startsWith('http')
-    ? item.url
-    : `https://www.nytimes.com/${item.url}`;
+const imageUrl = (item?: NytMultimedia) => {
+  const img = item?.thumbnail?.url ?? item?.default?.url;
+  if (!img) return undefined;
+  return img.startsWith('http') ? img : `https://www.nytimes.com/${img}`;
 };
 
 export const mapNytResponse = (payload: NytResponse): Article[] =>
   payload.response.docs.map((item: NytDocument) => {
-    const image = imageUrl(item.multimedia ?? []);
-    const description = item.abstract ?? item.lead_paragraph ?? undefined;
+    const image = imageUrl(item.multimedia);
+    const description = item.abstract ?? item.snippet ?? undefined;
     const author = item.byline?.original?.replace(/^By\s+/i, '') || undefined;
     return {
       id: `nyt:${item._id}`,
