@@ -26,7 +26,10 @@ const providerDefinitions = {
   },
 } satisfies Record<ProviderId, ProviderDefinition>;
 
-export const createProviderRegistry = (): ReadonlyMap<ProviderId, NewsProvider> => {
+export const createProviderRegistry = (): ReadonlyMap<
+  ProviderId,
+  NewsProvider
+> => {
   const entries = Object.entries(providerDefinitions).map(
     ([providerId, definition]): [ProviderId, NewsProvider] => {
       const id = providerId as ProviderId;
@@ -44,7 +47,9 @@ export const createProviderRegistry = (): ReadonlyMap<ProviderId, NewsProvider> 
         return [id, new MockProvider(id)];
       }
 
-      throw new Error(`Missing API key for ${id} while NEWS_PROVIDER_MODE=live`);
+      throw new Error(
+        `Missing API key for ${id} while NEWS_PROVIDER_MODE=live`,
+      );
     },
   );
 

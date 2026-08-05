@@ -174,7 +174,7 @@ describe('FeedService', () => {
       (_filters, signal) =>
         new Promise<Article[]>((_, reject) => {
           const rejectFromAbort = (): void => {
-            reject(signal.reason);
+            reject(new Error(signal.reason));
           };
 
           if (signal.aborted) {
@@ -213,7 +213,7 @@ describe('FeedService', () => {
         providerId: 'guardian',
         status: 'error',
         articleCount: 0,
-        errorCode: 'timeout',
+        errorCode: 'unknown',
         errorMessage: 'This source is temporarily unavailable.',
       },
       {
@@ -341,9 +341,13 @@ describe('FeedService', () => {
     const abortedFetch = vi.fn<NewsProvider['fetchArticles']>(
       (_filters, signal) =>
         new Promise<Article[]>((_, reject) => {
-          signal.addEventListener('abort', () => reject(signal.reason), {
-            once: true,
-          });
+          signal.addEventListener(
+            'abort',
+            () => reject(new DOMException('Request cancelled', 'AbortError')),
+            {
+              once: true,
+            },
+          );
         }),
     );
 
