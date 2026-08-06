@@ -1,22 +1,9 @@
 import helmet from 'helmet';
 
-const getAllowedOrigin = (value?: string): string[] => {
-  if (!value) return [];
-
-  try {
-    const url = new URL(value);
-    return url.protocol === 'http:' || url.protocol === 'https:'
-      ? [url.origin]
-      : [];
-  } catch {
-    return [];
-  }
-};
-
-export const buildContentSecurityPolicyDirectives = (sentryDsn?: string) => ({
+export const buildContentSecurityPolicyDirectives = () => ({
   defaultSrc: ["'self'"],
   baseUri: ["'self'"],
-  connectSrc: ["'self'", ...getAllowedOrigin(sentryDsn)],
+  connectSrc: ["'self'", 'https://*.ingest.sentry.io'],
   fontSrc: ["'self'"],
   formAction: ["'self'"],
   frameAncestors: ["'none'"],
@@ -29,10 +16,10 @@ export const buildContentSecurityPolicyDirectives = (sentryDsn?: string) => ({
   styleSrcAttr: ["'none'"],
 });
 
-export const createSecurityHeaders = (sentryDsn?: string) =>
+export const createSecurityHeaders = () =>
   helmet({
     contentSecurityPolicy: {
-      directives: buildContentSecurityPolicyDirectives(sentryDsn),
+      directives: buildContentSecurityPolicyDirectives(),
     },
     crossOriginResourcePolicy: { policy: 'cross-origin' },
   });

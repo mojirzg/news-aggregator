@@ -25,10 +25,14 @@ export class RouteChunkBoundary extends Component<
   }
 
   public componentDidCatch(error: Error, info: ErrorInfo): void {
-    Sentry.captureException(error, {
-      tags: { boundary: 'route-chunk' },
-      contexts: { react: { componentStack: info.componentStack ?? '' } },
-    });
+    Sentry.captureException(error);
+
+    if (import.meta.env.DEV) {
+      console.error('Route chunk failed to load', {
+        error,
+        componentStack: info.componentStack,
+      });
+    }
   }
 
   public render() {

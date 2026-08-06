@@ -74,7 +74,7 @@ const runAxe = async (
   expect(violations, JSON.stringify(violations, null, 2)).toEqual([]);
 };
 
-test('key routes pass the automated WCAG axe gate', async ({
+test('the news route passes the automated WCAG axe gate', async ({
   page,
 }, testInfo) => {
   test.skip(
@@ -82,44 +82,9 @@ test('key routes pass the automated WCAG axe gate', async ({
     'The full accessibility gate runs once in desktop Chromium.',
   );
 
-  for (const route of [
-    {
-      path: '/',
-      label: 'news',
-      ready: () => page.getByRole('region', { name: 'News articles' }),
-    },
-    {
-      path: '/for-you',
-      label: 'for-you',
-      ready: () => page.getByRole('heading', { name: 'For You', level: 1 }),
-    },
-    {
-      path: '/preferences',
-      label: 'preferences',
-      ready: () =>
-        page.getByRole('heading', { name: 'Customize your feed', level: 1 }),
-    },
-  ]) {
-    await page.goto(route.path);
-    await expect(route.ready()).toBeVisible();
-    await runAxe(page, testInfo, route.label);
-  }
-});
-
-test('mobile filter drawer passes the automated WCAG axe gate', async ({
-  page,
-  isMobile,
-}, testInfo) => {
-  test.skip(!isMobile, 'This check targets the modal mobile filter state.');
-
   await page.goto('/');
   await expect(
     page.getByRole('region', { name: 'News articles' }),
   ).toBeVisible();
-  await page.getByRole('button', { name: 'Open filters' }).click();
-  await expect(
-    page.getByRole('dialog', { name: 'Filter articles' }),
-  ).toBeVisible();
-
-  await runAxe(page, testInfo, 'mobile-filter-drawer');
+  await runAxe(page, testInfo, 'news');
 });

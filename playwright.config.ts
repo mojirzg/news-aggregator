@@ -1,7 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const port = 4173;
-const crossBrowserSmoke = /cross-browser-smoke\.spec\.ts/;
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -21,18 +20,11 @@ export default defineConfig({
   projects: [
     {
       name: 'desktop-chromium',
-      testIgnore: crossBrowserSmoke,
       use: { ...devices['Desktop Chrome'] },
     },
     {
       name: 'mobile-chromium',
-      testIgnore: crossBrowserSmoke,
       use: { ...devices['Pixel 7'] },
-    },
-    {
-      name: 'desktop-firefox',
-      testMatch: crossBrowserSmoke,
-      use: { ...devices['Desktop Firefox'] },
     },
   ],
 

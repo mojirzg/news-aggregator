@@ -10,12 +10,10 @@ interface AppErrorBoundaryProps {
 
 interface AppErrorBoundaryState {
   error: Error | null;
-  eventId: string | null;
 }
 
 const initialState: AppErrorBoundaryState = {
   error: null,
-  eventId: null,
 };
 
 export class AppErrorBoundary extends Component<
@@ -31,28 +29,12 @@ export class AppErrorBoundary extends Component<
   }
 
   public componentDidCatch(error: Error, info: ErrorInfo): void {
-    const eventId = Sentry.withScope((scope) => {
-      scope.setLevel('error');
-
-      scope.setTag('error.boundary', 'AppErrorBoundary');
-      scope.setTag('error.type', error.name);
-
-      scope.setContext('react', {
-        componentStack: info.componentStack ?? 'Unavailable',
-      });
-
-      scope.setExtra('componentStack', info.componentStack ?? 'Unavailable');
-
-      return Sentry.captureException(error);
-    });
-
-    this.setState({ eventId });
+    Sentry.captureException(error);
 
     if (import.meta.env.DEV) {
       console.error('Unhandled React render error', {
         error,
         componentStack: info.componentStack,
-        sentryEventId: eventId,
       });
     }
   }
@@ -66,7 +48,7 @@ export class AppErrorBoundary extends Component<
   };
 
   public render(): ReactNode {
-    const { error, eventId } = this.state;
+    const { error } = this.state;
 
     if (!error) {
       return this.props.children;
@@ -98,11 +80,6 @@ export class AppErrorBoundary extends Component<
 
             <pre>{error.message}</pre>
 
-            {eventId && (
-              <p>
-                Sentry event ID: <code>{eventId}</code>
-              </p>
-            )}
           </details>
         )}
       </main>

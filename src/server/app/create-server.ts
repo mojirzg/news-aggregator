@@ -17,9 +17,7 @@ export const createServer = () => {
   app.set('trust proxy', 1);
   app.use(requestId);
   app.use(requestLogger);
-  app.use(
-    createSecurityHeaders(serverEnv.SENTRY_DSN ?? serverEnv.VITE_SENTRY_DSN),
-  );
+  app.use(createSecurityHeaders());
   app.use(compression());
   app.use(express.json({ limit: '32kb' }));
 

@@ -11,22 +11,12 @@ describe('content security policy', () => {
     expect(directives?.styleSrcAttr).toEqual(["'none'"]);
   });
 
-  it('ignores non-HTTP DSN schemes', () => {
-    const directives = buildContentSecurityPolicyDirectives(
-      'javascript:alert(1)',
-    );
+  it('allows the standard Sentry ingest endpoint for optional client errors', () => {
+    const directives = buildContentSecurityPolicyDirectives();
 
-    expect(directives.connectSrc).toEqual(["'self'"]);
-  });
-
-  it('allowlists only the configured Sentry ingest origin', () => {
-    const directives = buildContentSecurityPolicyDirectives(
-      'https://public@example.ingest.sentry.io/42',
-    );
-
-    expect(directives?.connectSrc).toEqual([
+    expect(directives.connectSrc).toEqual([
       "'self'",
-      'https://example.ingest.sentry.io',
+      'https://*.ingest.sentry.io',
     ]);
   });
 });

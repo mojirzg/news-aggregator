@@ -9,7 +9,5 @@ export const initializeSentry = (): void => {
 
   Sentry.init({
     dsn: sentryDsn,
-    integrations: [Sentry.browserTracingIntegration()],
-    tracesSampleRate: import.meta.env.PROD ? 0.2 : 1,
   });
 };

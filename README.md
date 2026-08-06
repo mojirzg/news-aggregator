@@ -1,6 +1,7 @@
 # Signal News — innoscripta Frontend Take-Home
 
-A news aggregator built as a **modular monolith**: one React application, one Node BFF, one Docker container, and three provider adapters.
+A React and TypeScript news aggregator with one Express BFF, one Docker
+container, and three news-provider adapters.
 
 ## What is implemented
 
@@ -12,7 +13,8 @@ A news aggregator built as a **modular monolith**: one React application, one No
 - Runtime validation for provider responses, API contracts, query parameters, environment variables, and preferences.
 - Concurrent provider requests with timeout, abort propagation, deterministic sorting, and partial-failure isolation.
 - Mock provider mode so evaluators can run the complete product without API credentials.
-- Unit/module tests, axe accessibility gates, Chromium and Firefox Playwright journeys, Docker, health checks, strict CSP, rate limiting, structured logs, and CI.
+- Focused unit tests and Chromium Playwright journeys for the core flows,
+  including an automated accessibility check.
 
 ## Prerequisites
 
@@ -47,17 +49,6 @@ NEWS_API_KEY=
 
 `NEWS_PROVIDER_MODE=auto` uses a live adapter when its key exists and the equivalent mock adapter otherwise. Provider credentials are server-only and must never use a `VITE_` prefix.
 
-## Monitoring and CSP
-
-Browser monitoring is optional. When enabled, set both DSN variables to the same Sentry project:
-
-```env
-VITE_SENTRY_DSN=https://public-key@example.ingest.sentry.io/project-id
-SENTRY_DSN=https://public-key@example.ingest.sentry.io/project-id
-```
-
-`VITE_SENTRY_DSN` is embedded in the client build. `SENTRY_DSN` remains server runtime configuration and is used only to add the exact ingest origin to CSP `connect-src`. The DSN is a public ingestion identifier, not a provider API secret.
-
 ## Commands
 
 ```bash
@@ -65,8 +56,8 @@ pnpm dev          # client + BFF with watch mode
 pnpm lint         # ESLint + import boundaries + CSS token validation
 pnpm typecheck    # strict client/server TypeScript checks
 pnpm test         # Vitest unit and module tests
-pnpm exec playwright install chromium firefox # one-time browser setup
-pnpm test:e2e     # Chromium desktop/mobile + Firefox smoke + axe
+pnpm exec playwright install chromium # one-time browser setup
+pnpm test:e2e     # Chromium desktop/mobile core journeys + axe
 pnpm build        # production client and server bundles
 pnpm check        # complete quality gate
 pnpm start        # serve built BFF and React assets
@@ -85,13 +76,18 @@ Open `http://localhost:3000`. The container exposes:
 - `GET /api/health`
 - React production assets and SPA fallback
 
-## API example
+## API
 
 ```text
 GET /api/feed?query=climate&sourceIds=guardian,nyt&categories=science&dateFrom=2026-01-01
 ```
 
-See [docs/api-contract.md](docs/api-contract.md) for the normalized response.
+The BFF validates requests and provider responses, then returns a normalized
+article feed. Provider credentials stay server-side; the app also applies CSP,
+rate limiting, and structured error handling.
+
+Optional Sentry client error reporting is supported through `VITE_SENTRY_DSN`
+and is disabled when the variable is unset.
 
 ## Architecture summary
 
@@ -107,7 +103,8 @@ Server flow:
 Express route → FeedService → NewsProvider implementations → external API
 ```
 
-Details and trade-offs are documented in [docs/architecture.md](docs/architecture.md). Measurable release evidence and the honest Lighthouse follow-up checklist are in [docs/production-readiness-validation.md](docs/production-readiness-validation.md).
+See [docs/architecture.md](docs/architecture.md) for state ownership and
+provider data flow.
 
 ## Known limitations
 
@@ -118,4 +115,4 @@ Details and trade-offs are documented in [docs/architecture.md](docs/architectur
 - Live API quotas and development-plan restrictions remain provider-specific.
 - Exact initial-document discovery of the first provider image would require SSR/streaming or a server-generated preload contract; the current client-rendered feed removes lazy-loading delay but cannot advertise an unknown image URL in the initial HTML.
 
-These items were excluded to keep the assessment focused; the trade-offs are documented in the ADRs.
+These items were excluded to keep the assessment focused.
