@@ -35,9 +35,6 @@ importers:
       pino-http:
         specifier: ^10.5.0
         version: 10.5.0
-      prettier:
-        specifier: ^3.9.6
-        version: 3.9.6
       react:
         specifier: ^19.2.8
         version: 19.2.8
@@ -105,6 +102,9 @@ importers:
       jsdom:
         specifier: ^27.0.0
         version: 27.4.0(@noble/hashes@1.8.0)
+      prettier:
+        specifier: ^3.9.6
+        version: 3.9.6
       rollup-plugin-visualizer:
         specifier: ^7.0.1
         version: 7.0.1(rolldown@1.2.2)(rollup@4.62.4)
