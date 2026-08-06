@@ -1,7 +1,12 @@
 import type { ArticleFilters, Category } from '@contracts/index';
 import type { NewsProvider } from '../news-provider';
 import { ProviderError } from '../provider-errors';
-import { fetchGuardian, mapGuardianResponse } from './guardian.response';
+import {
+  guardianResponseSchema,
+  mapGuardianResponse,
+} from './guardian.response';
+import { fetchJson } from '@server/shared/http/provider-http-client';
+
 export const guardianConfig = {
   endpoint: 'https://content.guardianapis.com/search',
   pageSize: 30,
@@ -49,8 +54,9 @@ export class GuardianProvider implements NewsProvider {
 
   public async fetchArticles(filters: ArticleFilters, signal: AbortSignal) {
     try {
-      const response = await fetchGuardian(
+      const response = await fetchJson(
         buildGuardianUrl(filters, this.apiKey),
+        guardianResponseSchema,
         signal,
       );
       return mapGuardianResponse(response);

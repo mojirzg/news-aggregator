@@ -108,6 +108,7 @@ const getNytImageUrl = (multimedia?: NytMultimedia): string | undefined => {
     return undefined;
   }
 };
+
 export const mapNytResponse = (payload: NytResponse): Article[] =>
   payload.response.docs.map((item: NytDocument) => {
     const image = getNytImageUrl(item.multimedia);
