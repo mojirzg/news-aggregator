@@ -1,4 +1,109 @@
-container:
+name: CI
+
+on:
+  push:
+  pull_request:
+
+env:
+  CI: 'true'
+  NEWS_PROVIDER_MODE: mock
+
+jobs:
+  quality:
+    name: Lint, types, unit tests, and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Record commit metadata
+        run: |
+          mkdir -p quality-gate
+          printf '{"commitSha":"%s","job":"quality","providerMode":"mock"}\n' "$GITHUB_SHA" > quality-gate/metadata.json
+      - name: Install dependencies
+        run: |
+          set -o pipefail
+          pnpm install --frozen-lockfile 2>&1 | tee quality-gate/install.log
+      - name: Lint
+        run: |
+          set -o pipefail
+          pnpm lint 2>&1 | tee quality-gate/lint.log
+      - name: Type check
+        run: |
+          set -o pipefail
+          pnpm typecheck 2>&1 | tee quality-gate/typecheck.log
+      - name: Run unit tests
+        run: |
+          set -o pipefail
+          pnpm test 2>&1 | tee quality-gate/unit-tests.log
+      - name: Build production bundles
+        run: |
+          set -o pipefail
+          pnpm build 2>&1 | tee quality-gate/build.log
+      - name: Upload production build
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ github.sha }}
+          path: dist/
+          if-no-files-found: error
+      - name: Upload source quality-gate record
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-gate-source-${{ github.sha }}
+          path: quality-gate/
+          if-no-files-found: error
+
+  browser:
+    name: Playwright desktop and mobile
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Record commit metadata
+        run: |
+          mkdir -p quality-gate
+          printf '{"commitSha":"%s","job":"browser","providerMode":"mock"}\n' "$GITHUB_SHA" > quality-gate/metadata.json
+      - name: Install dependencies
+        run: |
+          set -o pipefail
+          pnpm install --frozen-lockfile 2>&1 | tee quality-gate/install.log
+      - name: Install Playwright browser
+        run: |
+          set -o pipefail
+          pnpm exec playwright install --with-deps chromium 2>&1 | tee quality-gate/playwright-install.log
+      - name: Run end-to-end tests
+        run: |
+          set -o pipefail
+          pnpm test:e2e 2>&1 | tee quality-gate/playwright.log
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.sha }}
+          path: playwright-report/
+          if-no-files-found: ignore
+      - name: Upload browser quality-gate record
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-gate-browser-${{ github.sha }}
+          path: quality-gate/
+          if-no-files-found: error
+
+  container:
   name: Docker build, Compose, and health
   needs:
     - quality
