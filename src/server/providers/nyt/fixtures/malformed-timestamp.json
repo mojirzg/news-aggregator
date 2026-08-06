@@ -1,0 +1,17 @@
+{
+  "status": "OK",
+  "response": {
+    "docs": [
+      {
+        "abstract": "Invalid timestamp fixture",
+        "byline": { "original": "By Jane Smith" },
+        "headline": { "main": "Invalid timestamp fixture" },
+        "_id": "nyt://article/invalid-date",
+        "keywords": [],
+        "multimedia": null,
+        "pub_date": "2026-99-99",
+        "web_url": "https://www.nytimes.com/invalid-date"
+      }
+    ]
+  }
+}

@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { mapNytResponse } from './nyt.response';
+import { mapNytResponse, nytResponseSchema } from './nyt.response';
+import malformedTimestamp from './fixtures/malformed-timestamp.json';
 import { buildNytUrl } from './nyt.provider';
 
 describe('New York Times adapter mapping', () => {
+  it('rejects malformed provider timestamps', () => {
+    expect(nytResponseSchema.safeParse(malformedTimestamp).success).toBe(false);
+  });
+
   it('translates dates and categories into Article Search parameters', () => {
     const url = buildNytUrl(
       {
@@ -145,7 +150,7 @@ describe('New York Times adapter mapping', () => {
       id: 'nyt:nyt://article/a7b1db10-d6d7-5afe-aa1b-d8d3856b040a',
       title:
         'Malaysian Pilot Smuggled 55 Pounds of Ecstasy Into Indonesia, Officials Say',
-      author: 'Johnny Diaz',
+      authors: ['Johnny Diaz'],
       imageUrl:
         'https://static01.nyt.com/images/2026/08/05/multimedia/05xp-pilot/05xp-pilot-thumbStandard.jpg',
       categories: ['general'],

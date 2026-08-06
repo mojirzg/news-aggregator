@@ -3,6 +3,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
+        VITE_SENTRY_ENVIRONMENT: ${VITE_SENTRY_ENVIRONMENT:-production}
+        VITE_APP_VERSION: ${VITE_APP_VERSION:-local}
 
     environment:
       NODE_ENV: ${NODE_ENV:-production}
@@ -12,6 +16,7 @@ services:
       GUARDIAN_API_KEY: ${GUARDIAN_API_KEY:-}
       NYT_API_KEY: ${NYT_API_KEY:-}
       NEWS_API_KEY: ${NEWS_API_KEY:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
 
     ports:
       - "${HOST_PORT:-3000}:${CONTAINER_PORT:-3000}"

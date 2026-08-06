@@ -40,15 +40,22 @@ GET /api/feed
   → validate normalized query
   → select providers
   → request concurrently
-  → validate external payloads
+  → validate external payloads and timestamps
+  → normalize provider bylines into canonical author arrays
   → map to Article
   → isolate provider failures
-  → apply normalized author filter
+  → apply exact case-insensitive canonical-author filtering
   → sort by publishedAt descending
   → validate unified response
 ```
 
 Provider-specific query translation and response mapping are confined to each adapter. The aggregator knows only the `NewsProvider` interface.
+
+## Author personalization
+
+Provider bylines are untrusted presentation strings, not stable identities. Each adapter normalizes values such as `By Jane Smith, Reuters` or `Jane Smith and John Doe` into a canonical `authors: string[]` contract. Feed filtering compares canonical names case-insensitively instead of comparing a preference with the complete upstream byline.
+
+The preferences page reads authors from successful feed entries already cached by TanStack Query. Suggestions are grouped with the provider ids where they were observed. Manual entry remains available, and selected authors are explicitly marked when they were discovered but are unavailable from the currently selected providers.
 
 ## Adding a fourth provider
 

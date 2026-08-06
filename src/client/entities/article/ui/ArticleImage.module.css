@@ -1,0 +1,12 @@
+.media {
+  display: block;
+  aspect-ratio: 23 / 17;
+}
+
+.placeholder {
+  display: grid;
+  place-items: center;
+  background: #e8edf3;
+  color: #475467;
+  font-weight: 800;
+}

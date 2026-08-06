@@ -20,7 +20,12 @@ const SkeletonCard = () => (
 );
 
 export const PageLoadingSkeleton = () => (
-  <main className={styles.page} aria-busy="true" aria-label="Loading page">
+  <main
+    id="main-content"
+    className={styles.page}
+    aria-busy="true"
+    aria-label="Loading page"
+  >
     <span className={styles.visuallyHidden}>Loading page…</span>
 
     <header className={styles.header}>

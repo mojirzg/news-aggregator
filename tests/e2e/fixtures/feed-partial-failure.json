@@ -6,19 +6,36 @@
       "title": "Successful article remains visible",
       "description": "A provider failure must not erase valid results from other sources.",
       "publishedAt": "2026-08-04T12:00:00.000Z",
-      "categories": ["technology"],
-      "source": { "id": "guardian", "name": "The Guardian" }
+      "categories": [
+        "technology"
+      ],
+      "source": {
+        "id": "guardian",
+        "name": "The Guardian"
+      },
+      "authors": [
+        "Example Author"
+      ]
     }
   ],
   "providers": [
-    { "providerId": "guardian", "status": "success", "articleCount": 1 },
+    {
+      "providerId": "guardian",
+      "status": "success",
+      "articleCount": 1
+    },
     {
       "providerId": "nyt",
       "status": "error",
       "articleCount": 0,
-      "errorMessage": "This source is temporarily unavailable."
+      "errorMessage": "This source is temporarily unavailable.",
+      "errorCode": "unknown"
     },
-    { "providerId": "newsapi", "status": "success", "articleCount": 0 }
+    {
+      "providerId": "newsapi",
+      "status": "success",
+      "articleCount": 0
+    }
   ],
   "generatedAt": "2026-08-04T12:00:00.000Z"
 }

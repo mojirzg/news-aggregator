@@ -1,5 +1,6 @@
 import type { Article, Category } from '@contracts/index';
 import { z } from 'zod';
+import { normalizeProviderAuthors } from '../normalize-provider-authors';
 
 export type GuardianResponse = z.infer<typeof guardianResponseSchema>;
 type GuardianItem = GuardianResponse['response']['results'][number];
@@ -22,7 +23,7 @@ export const guardianResponseSchema = z.object({
         type: z.string(),
         sectionId: z.string().optional(),
         sectionName: z.string().optional(),
-        webPublicationDate: z.string(),
+        webPublicationDate: z.string().datetime({ offset: true }),
         webTitle: z.string(),
         webUrl: z.string().url(),
         fields: z
@@ -52,7 +53,7 @@ export const mapGuardianResponse = (payload: GuardianResponse): Article[] =>
       ? { description: stripHtml(item.fields?.trailText) }
       : {}),
     ...(item.fields?.thumbnail ? { imageUrl: item.fields.thumbnail } : {}),
-    ...(item.fields?.byline ? { author: item.fields.byline } : {}),
+    authors: normalizeProviderAuthors(item.fields?.byline),
     publishedAt: new Date(item.webPublicationDate).toISOString(),
     categories: [categoryBySection[item.sectionId ?? ''] ?? 'general'],
     source: { id: 'guardian', name: 'The Guardian' },

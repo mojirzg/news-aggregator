@@ -2,6 +2,7 @@ import * as Sentry from '@sentry/react';
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { ErrorState } from '@client/shared/ui/ErrorState';
 import { Button } from '@client/shared/ui/Button';
+import styles from './AppErrorBoundary.module.css';
 
 interface State {
   hasError: boolean;
@@ -32,7 +33,7 @@ export class AppErrorBoundary extends Component<
             </main>
           }
         >
-          <main className="container" style={{ padding: '64px 0' }}>
+          <main id="main-content" className={`container ${styles.page}`}>
             <ErrorState
               action={
                 <Button type="button" onClick={() => window.location.reload()}>

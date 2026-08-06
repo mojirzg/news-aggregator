@@ -1,6 +1,9 @@
 import type { ArticleFilters } from '@contracts/index';
 import type { AppOutletContext } from '@client/shared/lib/router/app-outlet-context';
-import { useArticleFilters } from '@client/features/filter-articles';
+import {
+  getDateRangeError,
+  useArticleFilters,
+} from '@client/features/filter-articles';
 import { normalizeSearchQuery } from '@client/features/search-articles';
 import {
   DesktopFilters,
@@ -66,6 +69,11 @@ export const NewsPage = () => {
 
       setDesktopFilters(nextFilters);
 
+      if (getDateRangeError(nextFilters)) {
+        cancelPendingFilterPatch();
+        return;
+      }
+
       if (queryChanged) {
         patchFiltersDebounced(
           {
@@ -81,10 +89,19 @@ export const NewsPage = () => {
         query: normalizeSearchQuery(nextFilters.query),
       });
     },
-    [desktopFilters.query, patchFiltersDebounced, setFilters],
+    [
+      cancelPendingFilterPatch,
+      desktopFilters.query,
+      patchFiltersDebounced,
+      setFilters,
+    ],
   );
 
   const applyFilters = useCallback(() => {
+    if (getDateRangeError(filterDraft)) {
+      return;
+    }
+
     const nextFilters = {
       ...filterDraft,
       query: normalizeSearchQuery(filterDraft.query),
@@ -111,6 +128,7 @@ export const NewsPage = () => {
   return (
     <main id="main-content" className={styles.page}>
       <div className="container">
+        <h1 className="srOnly">Latest news</h1>
         <div className={styles.searchRow}>
           <MobileFilterDrawer
             open={isFilterDrawerOpen}

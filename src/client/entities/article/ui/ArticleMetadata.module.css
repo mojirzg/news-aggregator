@@ -1,0 +1,15 @@
+.metadata {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+}
+
+.separator {
+  color: var(--color-text-muted);
+}
+
+.date {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+}

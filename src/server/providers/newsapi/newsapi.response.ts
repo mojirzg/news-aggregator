@@ -1,6 +1,7 @@
 import type { Article } from '@contracts/index';
 import { z } from 'zod';
 import { inferCategory } from './newsapi.provider';
+import { normalizeProviderAuthors } from '../normalize-provider-authors';
 
 export type NewsApiResponse = z.infer<typeof newsApiResponseSchema>;
 type NewsApiItem = NewsApiResponse['articles'][number];
@@ -16,7 +17,7 @@ export const newsApiResponseSchema = z.object({
       description: z.string().nullable(),
       url: z.string().url(),
       urlToImage: z.string().url().nullable(),
-      publishedAt: z.string(),
+      publishedAt: z.string().datetime({ offset: true }),
       content: z.string().nullable().optional(),
     }),
   ),
@@ -31,7 +32,7 @@ export const mapNewsApiResponse = (payload: NewsApiResponse): Article[] =>
       title: item.title,
       ...(item.description ? { description: item.description } : {}),
       ...(item.urlToImage ? { imageUrl: item.urlToImage } : {}),
-      ...(item.author ? { author: item.author } : {}),
+      authors: normalizeProviderAuthors(item.author),
       publishedAt: new Date(item.publishedAt).toISOString(),
       categories: [inferCategory(item.title, item.description)],
       source: { id: 'newsapi', name: item.source.name || 'NewsAPI' },

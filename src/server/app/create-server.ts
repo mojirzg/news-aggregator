@@ -6,7 +6,7 @@ import { errorHandler } from './middleware/error-handler';
 import { notFound } from './middleware/not-found';
 import { requestId } from './middleware/request-id';
 import { requestLogger } from './middleware/request-logger';
-import { securityHeaders } from './middleware/security-headers';
+import { createSecurityHeaders } from './middleware/security-headers';
 import { registerRoutes } from './register-routes';
 import { serveClient } from './serve-client';
 import { FeedService } from '../modules/feed/feed.service';
@@ -17,7 +17,9 @@ export const createServer = () => {
   app.set('trust proxy', 1);
   app.use(requestId);
   app.use(requestLogger);
-  app.use(securityHeaders);
+  app.use(
+    createSecurityHeaders(serverEnv.SENTRY_DSN ?? serverEnv.VITE_SENTRY_DSN),
+  );
   app.use(compression());
   app.use(express.json({ limit: '32kb' }));
 

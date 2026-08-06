@@ -14,7 +14,7 @@ export const mockArticles: Record<ProviderId, Article[]> = {
         'Engineering leaders are tightening model governance while keeping product teams moving quickly.',
       imageUrl:
         'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80',
-      author: 'Elena Brooks',
+      authors: ['Elena Brooks'],
       publishedAt: hoursAgo(1),
       categories: ['technology'],
       keywords: ['AI', 'governance'],
@@ -28,7 +28,7 @@ export const mockArticles: Record<ProviderId, Article[]> = {
         'A cross-border research effort has reduced the time needed to model local weather extremes.',
       imageUrl:
         'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80',
-      author: 'Nadia Okafor',
+      authors: ['Nadia Okafor'],
       publishedAt: hoursAgo(5),
       categories: ['science'],
       source: { id: 'guardian', name: 'The Guardian' },
@@ -39,7 +39,7 @@ export const mockArticles: Record<ProviderId, Article[]> = {
       title: 'Hospitals test privacy-first patient data exchange',
       description:
         'The pilot focuses on interoperability without centralizing sensitive medical records.',
-      author: 'Maya Chen',
+      authors: ['Maya Chen'],
       publishedAt: hoursAgo(11),
       categories: ['health'],
       source: { id: 'guardian', name: 'The Guardian' },
@@ -54,7 +54,7 @@ export const mockArticles: Record<ProviderId, Article[]> = {
         'Technology buyers are asking vendors to prove measurable value before approving larger contracts.',
       imageUrl:
         'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80',
-      author: 'Jordan Lee',
+      authors: ['Jordan Lee'],
       publishedAt: hoursAgo(2),
       categories: ['business', 'technology'],
       keywords: ['cloud', 'business'],
@@ -68,7 +68,7 @@ export const mockArticles: Record<ProviderId, Article[]> = {
         'Open tooling is helping smaller research groups process observations once reserved for major institutions.',
       imageUrl:
         'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=1200&q=80',
-      author: 'Priya Raman',
+      authors: ['Priya Raman'],
       publishedAt: hoursAgo(7),
       categories: ['science'],
       source: { id: 'nyt', name: 'The New York Times' },
@@ -79,7 +79,7 @@ export const mockArticles: Record<ProviderId, Article[]> = {
       title: 'Football clubs build smaller, sharper analytics teams',
       description:
         'The newest competitive edge is not more data, but better questions and faster feedback loops.',
-      author: 'Daniel Foster',
+      authors: ['Daniel Foster'],
       publishedAt: hoursAgo(14),
       categories: ['sports'],
       source: { id: 'nyt', name: 'The New York Times' },
@@ -94,7 +94,7 @@ export const mockArticles: Record<ProviderId, Article[]> = {
         'Automated checks are catching costly regressions before they reach production.',
       imageUrl:
         'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80',
-      author: 'Amir Solberg',
+      authors: ['Amir Solberg'],
       publishedAt: hoursAgo(3),
       categories: ['technology'],
       keywords: ['frontend', 'performance'],
@@ -106,7 +106,7 @@ export const mockArticles: Record<ProviderId, Article[]> = {
       title: 'Biotech funding returns with stricter milestones',
       description:
         'Investors are backing smaller rounds tied to clinical and manufacturing evidence.',
-      author: 'Sofia Marin',
+      authors: ['Sofia Marin'],
       publishedAt: hoursAgo(9),
       categories: ['business', 'health'],
       source: { id: 'newsapi', name: 'Market Wire' },
@@ -119,7 +119,7 @@ export const mockArticles: Record<ProviderId, Article[]> = {
         'Studios are testing flexible schedules to balance subscriber growth and audience retention.',
       imageUrl:
         'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=1200&q=80',
-      author: 'Leila Hart',
+      authors: ['Leila Hart'],
       publishedAt: hoursAgo(17),
       categories: ['entertainment'],
       source: { id: 'newsapi', name: 'Culture Desk' },

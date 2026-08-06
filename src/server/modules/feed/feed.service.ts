@@ -59,10 +59,10 @@ const filterArticlesByAuthor = (
 
   const normalizedAuthors = new Set(authors.map(normalizeAuthor));
 
-  return articles.filter(
-    (article) =>
-      article.author !== undefined &&
-      normalizedAuthors.has(normalizeAuthor(article.author)),
+  return articles.filter((article) =>
+    article.authors.some((author) =>
+      normalizedAuthors.has(normalizeAuthor(author)),
+    ),
   );
 };
 

@@ -10,6 +10,8 @@ const ENV = {
   GUARDIAN_API_KEY: process.env.GUARDIAN_API_KEY,
   NYT_API_KEY: process.env.NYT_API_KEY,
   NEWS_API_KEY: process.env.NEWS_API_KEY,
+  SENTRY_DSN: process.env.SENTRY_DSN,
+  VITE_SENTRY_DSN: process.env.VITE_SENTRY_DSN,
 };
 const result = serverEnvSchema.safeParse(ENV);
 

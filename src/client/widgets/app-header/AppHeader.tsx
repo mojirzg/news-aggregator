@@ -31,7 +31,7 @@ export const AppHeader = ({
           aria-label="Open filters"
           aria-haspopup="dialog"
           aria-expanded={filtersOpen}
-          aria-controls="mobile-filter-drawer"
+          aria-controls={filtersOpen ? 'mobile-filter-drawer' : undefined}
           className={styles.filterButton}
           onClick={onOpenFilters}
         >

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import type { FeedPreferences } from '@client/entities/feed-preferences';
+import type { DiscoveredAuthor } from '@client/entities/feed';
 import {
   usePreferencesForm,
   validatePreferences,
@@ -14,10 +15,12 @@ export const PreferencesForm = ({
   initial,
   onSave,
   onReset,
+  discoveredAuthors,
 }: {
   initial: FeedPreferences;
   onSave: (preferences: FeedPreferences) => void;
   onReset: () => void;
+  discoveredAuthors: DiscoveredAuthor[];
 }) => {
   const form = usePreferencesForm(initial);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -57,7 +60,11 @@ export const PreferencesForm = ({
       </section>
       <section className={styles.section}>
         <h2 className={styles.title}>Preferred authors</h2>
-        <AuthorPreferences value={form.draft} onChange={form.setDraft} />
+        <AuthorPreferences
+          discoveredAuthors={discoveredAuthors}
+          value={form.draft}
+          onChange={form.setDraft}
+        />
       </section>
       <div className={styles.actions}>
         <Button

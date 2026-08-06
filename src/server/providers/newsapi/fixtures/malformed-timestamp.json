@@ -1,0 +1,16 @@
+{
+  "status": "ok",
+  "totalResults": 1,
+  "articles": [
+    {
+      "source": { "id": null, "name": "Fixture Source" },
+      "author": "Jane Smith",
+      "title": "Invalid timestamp fixture",
+      "description": null,
+      "url": "https://example.com/invalid-date",
+      "urlToImage": null,
+      "publishedAt": "yesterday",
+      "content": null
+    }
+  ]
+}

@@ -47,8 +47,10 @@ export class MockProvider implements NewsProvider {
         );
       const authorMatches =
         filters.authors.length === 0 ||
-        filters.authors.some((author) =>
-          includesInsensitive(article.author, author),
+        filters.authors.some((preferredAuthor) =>
+          article.authors.some((author) =>
+            includesInsensitive(author, preferredAuthor),
+          ),
         );
       const date = article.publishedAt.slice(0, 10);
       const afterFrom = !filters.dateFrom || date >= filters.dateFrom;

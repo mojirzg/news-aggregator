@@ -9,6 +9,7 @@ import styles from './Drawer.module.css';
 import { X } from 'lucide-react';
 
 interface DrawerProps {
+  id?: string;
   open: boolean;
   title: string;
   onClose: () => void;
@@ -37,6 +38,7 @@ const getFocusableElements = (container: HTMLElement): HTMLElement[] =>
   );
 
 export const Drawer = ({
+  id,
   open,
   title,
   onClose,
@@ -90,11 +92,10 @@ export const Drawer = ({
         : null;
 
     const body = document.body;
-    const previousOverflow = body.style.overflow;
-    body.style.overflow = 'hidden';
+    body.classList.add(styles.scrollLock as string);
 
     return () => {
-      body.style.overflow = previousOverflow;
+      body.classList.remove(styles.scrollLock as string);
       previouslyFocusedRef.current?.focus();
       previouslyFocusedRef.current = null;
     };
@@ -185,6 +186,7 @@ export const Drawer = ({
       />
 
       <section
+        id={id}
         ref={dialogRef}
         className={styles.drawer}
         role="dialog"

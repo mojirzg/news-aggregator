@@ -1,9 +1,11 @@
+import { useDiscoveredAuthors } from '@client/entities/feed';
 import { useFeedPreferences } from '@client/entities/feed-preferences';
 import { PreferencesForm } from '@client/widgets/preferences-form';
 import styles from './PreferencesPage.module.css';
 
 export const PreferencesPage = () => {
   const { preferences, save, clear } = useFeedPreferences();
+  const discoveredAuthors = useDiscoveredAuthors();
   return (
     <main id="main-content" className={styles.page}>
       <div className={`container ${styles.content}`}>
@@ -16,7 +18,12 @@ export const PreferencesPage = () => {
             assessment.
           </p>
         </header>
-        <PreferencesForm initial={preferences} onSave={save} onReset={clear} />
+        <PreferencesForm
+          initial={preferences}
+          discoveredAuthors={discoveredAuthors}
+          onSave={save}
+          onReset={clear}
+        />
       </div>
     </main>
   );

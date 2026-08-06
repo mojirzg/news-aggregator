@@ -2,13 +2,16 @@
   --color-bg: #f6f7f9;
   --color-surface: #ffffff;
   --color-surface-muted: #eef2f6;
+  --color-surface-hover: #e4eaf1;
   --color-text: #111827;
-  --color-text-muted: #667085;
+  --color-text-muted: #626b79;
   --color-border: #d9e0e8;
   --color-brand: #101828;
   --color-brand-strong: #0b1220;
+  --color-on-brand: #ffffff;
   --color-accent: #0369a1;
   --color-accent-soft: #e0f2fe;
+  --color-focus: #0369a1;
   --color-danger: #b42318;
   --color-danger-soft: #fef3f2;
   --color-warning: #9a6700;
@@ -28,4 +31,8 @@
   --space-8: 32px;
   --space-10: 40px;
   --content-width: 1220px;
+  --scrollbar-track: #e8e8e8;
+  --scrollbar-thumb: #8a8f98;
+  --scrollbar-thumb-hover: #667085;
+  --scrollbar-size: 11px;
 }

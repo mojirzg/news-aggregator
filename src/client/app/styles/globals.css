@@ -20,8 +20,9 @@ body {
   background: #bae6fd;
 }
 :focus-visible {
-  outline: 3px solid #7dd3fc;
+  outline: 2px solid var(--color-on-brand);
   outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--color-focus);
 }
 
 .container {
@@ -53,12 +54,6 @@ body {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
-}
-
-:root {
-  --sb-track-color: #e8e8e8;
-  --sb-thumb-color: #b3b3b3;
-  --sb-size: 11px;
 }
 
 /* Chrome, Edge, Safari */

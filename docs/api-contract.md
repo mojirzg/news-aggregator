@@ -9,7 +9,7 @@ Query parameters:
 | `query`      | string                 | Keyword, maximum 160 characters                                       |
 | `sourceIds`  | comma-separated enum   | `guardian`, `nyt`, `newsapi`; empty means all                         |
 | `categories` | comma-separated enum   | business, technology, science, sports, health, entertainment, general |
-| `authors`    | comma-separated string | Case-insensitive normalized-author match                              |
+| `authors`    | comma-separated string | Exact case-insensitive match against normalized canonical authors     |
 | `dateFrom`   | `YYYY-MM-DD`           | Inclusive lower bound                                                 |
 | `dateTo`     | `YYYY-MM-DD`           | Inclusive upper bound                                                 |
 
@@ -24,7 +24,7 @@ Response:
       "title": "Article title",
       "description": "Optional summary",
       "imageUrl": "https://example.com/image.jpg",
-      "author": "Author Name",
+      "authors": ["Author One", "Author Two"],
       "publishedAt": "2026-08-04T12:00:00.000Z",
       "keywords": ["optional"],
       "categories": ["technology"],
@@ -37,6 +37,7 @@ Response:
       "providerId": "nyt",
       "status": "error",
       "articleCount": 0,
+      "errorCode": "invalid_response",
       "errorMessage": "This source is temporarily unavailable."
     }
   ],
@@ -59,3 +60,5 @@ Errors use this envelope:
 ## Provider failures
 
 Provider failures keep successful articles from other sources. Failed provider entries include a safe `errorCode` (`timeout`, `rate_limited`, `unauthorized`, `invalid_response`, `network_error`, `aborted`, or `unknown`) and a generic user-facing `errorMessage`. Raw upstream response bodies and credentials are never returned to the client.
+
+Provider timestamps must pass ISO date-time validation before mapping. Malformed timestamps are classified as `invalid_response`; mappers never call `toISOString()` on an unvalidated provider value.

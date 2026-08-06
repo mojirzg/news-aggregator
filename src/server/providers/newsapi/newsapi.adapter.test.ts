@@ -1,8 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { buildNewsApiUrl } from './newsapi.provider';
-import { mapNewsApiResponse } from './newsapi.response';
+import {
+  mapNewsApiResponse,
+  newsApiResponseSchema,
+} from './newsapi.response';
+import malformedTimestamp from './fixtures/malformed-timestamp.json';
 
 describe('NewsAPI adapter mapping', () => {
+  it('rejects malformed provider timestamps', () => {
+    expect(newsApiResponseSchema.safeParse(malformedTimestamp).success).toBe(
+      false,
+    );
+  });
+
   it('uses normalized filters in the Everything endpoint', () => {
     const url = buildNewsApiUrl(
       {
@@ -53,6 +63,7 @@ describe('NewsAPI adapter mapping', () => {
     expect(articles).toHaveLength(1);
     expect(articles[0]).toMatchObject({
       title: 'Software teams improve frontend performance',
+      authors: ['Example Author'],
       categories: ['technology'],
       source: { id: 'newsapi', name: 'Engineering Daily' },
     });

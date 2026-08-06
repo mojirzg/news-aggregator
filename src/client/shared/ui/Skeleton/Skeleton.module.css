@@ -4,6 +4,39 @@
   animation: shimmer 1.4s ease infinite;
   border-radius: 8px;
 }
+
+.height20 {
+  height: 20px;
+}
+
+.height24 {
+  height: 24px;
+}
+
+.height32 {
+  height: 32px;
+}
+
+.height170 {
+  height: 170px;
+}
+
+.width42 {
+  width: 42%;
+}
+
+.width75 {
+  width: 75%;
+}
+
+.width88 {
+  width: 88%;
+}
+
+.width100 {
+  width: 100%;
+}
+
 @keyframes shimmer {
   0% {
     background-position: 100% 0;
@@ -12,6 +45,7 @@
     background-position: 0 0;
   }
 }
+
 @media (prefers-reduced-motion: reduce) {
   .skeleton {
     animation: none;

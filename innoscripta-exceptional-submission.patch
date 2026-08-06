@@ -1,0 +1,3767 @@
+diff --git a/.env.example b/.env.example
+index b015f52..b78dbe3 100644
+--- a/.env.example
++++ b/.env.example
+@@ -10,6 +10,9 @@ NYT_API_KEY=
+ NEWS_API_KEY=
+ 
+ #MONITORING
++# Set both values to the same DSN: VITE_ is embedded in the client,
++# SENTRY_DSN is used to derive the CSP connect-src allowlist.
++SENTRY_DSN=
+ VITE_SENTRY_DSN=
+ VITE_SENTRY_ENVIRONMENT=development
+ VITE_APP_VERSION=local
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 6aa7cca..8472e43 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -60,7 +60,7 @@ jobs:
+           if-no-files-found: error
+ 
+   browser:
+-    name: Playwright desktop and mobile
++    name: Playwright accessibility and cross-browser
+     needs: quality
+     runs-on: ubuntu-latest
+     steps:
+@@ -80,10 +80,10 @@ jobs:
+         run: |
+           set -o pipefail
+           pnpm install --frozen-lockfile 2>&1 | tee quality-gate/install.log
+-      - name: Install Playwright browser
++      - name: Install Playwright browsers
+         run: |
+           set -o pipefail
+-          pnpm exec playwright install --with-deps chromium 2>&1 | tee quality-gate/playwright-install.log
++          pnpm exec playwright install --with-deps chromium firefox 2>&1 | tee quality-gate/playwright-install.log
+       - name: Run end-to-end tests
+         run: |
+           set -o pipefail
+diff --git a/Dockerfile b/Dockerfile
+index 38c5428..83c8090 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -6,6 +6,12 @@ COPY package.json pnpm-lock.yaml ./
+ RUN pnpm install --frozen-lockfile
+ 
+ FROM dependencies AS build
++ARG VITE_SENTRY_DSN=
++ARG VITE_SENTRY_ENVIRONMENT=production
++ARG VITE_APP_VERSION=local
++ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN \
++    VITE_SENTRY_ENVIRONMENT=$VITE_SENTRY_ENVIRONMENT \
++    VITE_APP_VERSION=$VITE_APP_VERSION
+ COPY . .
+ RUN pnpm check
+ 
+diff --git a/README.md b/README.md
+index 42c74f5..78b4158 100644
+--- a/README.md
++++ b/README.md
+@@ -7,12 +7,12 @@ A news aggregator built as a **modular monolith**: one React application, one No
+ - React + TypeScript responsive interface.
+ - Keyword search with URL-backed state.
+ - Date, category, and provider filters.
+-- Personalized feed using versioned local-storage preferences.
++- Personalized feed using versioned local-storage preferences and canonical multi-author data.
+ - Guardian, New York Times, and NewsAPI adapters.
+ - Runtime validation for provider responses, API contracts, query parameters, environment variables, and preferences.
+ - Concurrent provider requests with timeout, abort propagation, deterministic sorting, and partial-failure isolation.
+ - Mock provider mode so evaluators can run the complete product without API credentials.
+-- Unit/module tests, Playwright journeys, Docker, health check, security headers, rate limiting, structured logs, and CI.
++- Unit/module tests, axe accessibility gates, Chromium and Firefox Playwright journeys, Docker, health checks, strict CSP, rate limiting, structured logs, and CI.
+ 
+ ## Prerequisites
+ 
+@@ -47,15 +47,26 @@ NEWS_API_KEY=
+ 
+ `NEWS_PROVIDER_MODE=auto` uses a live adapter when its key exists and the equivalent mock adapter otherwise. Provider credentials are server-only and must never use a `VITE_` prefix.
+ 
++## Monitoring and CSP
++
++Browser monitoring is optional. When enabled, set both DSN variables to the same Sentry project:
++
++```env
++VITE_SENTRY_DSN=https://public-key@example.ingest.sentry.io/project-id
++SENTRY_DSN=https://public-key@example.ingest.sentry.io/project-id
++```
++
++`VITE_SENTRY_DSN` is embedded in the client build. `SENTRY_DSN` remains server runtime configuration and is used only to add the exact ingest origin to CSP `connect-src`. The DSN is a public ingestion identifier, not a provider API secret.
++
+ ## Commands
+ 
+ ```bash
+ pnpm dev          # client + BFF with watch mode
+-pnpm lint         # ESLint + architecture boundaries
++pnpm lint         # ESLint + import boundaries + CSS token validation
+ pnpm typecheck    # strict client/server TypeScript checks
+ pnpm test         # Vitest unit and module tests
+-pnpm exec playwright install chromium # one-time browser setup
+-pnpm test:e2e     # Playwright desktop + mobile journeys
++pnpm exec playwright install chromium firefox # one-time browser setup
++pnpm test:e2e     # Chromium desktop/mobile + Firefox smoke + axe
+ pnpm build        # production client and server bundles
+ pnpm check        # complete quality gate
+ pnpm start        # serve built BFF and React assets
+@@ -96,7 +107,7 @@ Server flow:
+ route → controller → service → aggregator → NewsProvider → provider adapter
+ ```
+ 
+-Details and trade-offs are documented in [docs/architecture.md](docs/architecture.md).
++Details and trade-offs are documented in [docs/architecture.md](docs/architecture.md). Measurable release evidence and the honest Lighthouse follow-up checklist are in [docs/production-readiness-validation.md](docs/production-readiness-validation.md).
+ 
+ ## Known limitations
+ 
+@@ -105,5 +116,6 @@ Details and trade-offs are documented in [docs/architecture.md](docs/architectur
+ - Preferences are local to the browser and are not synchronized to a user account.
+ - NewsAPI category filtering is translated into query terms because its `everything` endpoint does not expose the same category semantics as the other providers.
+ - Live API quotas and development-plan restrictions remain provider-specific.
++- Exact initial-document discovery of the first provider image would require SSR/streaming or a server-generated preload contract; the current client-rendered feed removes lazy-loading delay but cannot advertise an unknown image URL in the initial HTML.
+ 
+ These items were excluded to keep the assessment focused; the trade-offs are documented in the ADRs.
+diff --git a/compose.yaml b/compose.yaml
+index 78faa1c..d52854a 100644
+--- a/compose.yaml
++++ b/compose.yaml
+@@ -3,6 +3,10 @@ services:
+     build:
+       context: .
+       dockerfile: Dockerfile
++      args:
++        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
++        VITE_SENTRY_ENVIRONMENT: ${VITE_SENTRY_ENVIRONMENT:-production}
++        VITE_APP_VERSION: ${VITE_APP_VERSION:-local}
+ 
+     environment:
+       NODE_ENV: ${NODE_ENV:-production}
+@@ -12,6 +16,7 @@ services:
+       GUARDIAN_API_KEY: ${GUARDIAN_API_KEY:-}
+       NYT_API_KEY: ${NYT_API_KEY:-}
+       NEWS_API_KEY: ${NEWS_API_KEY:-}
++      SENTRY_DSN: ${SENTRY_DSN:-}
+ 
+     ports:
+       - "${HOST_PORT:-3000}:${CONTAINER_PORT:-3000}"
+diff --git a/docs/api-contract.md b/docs/api-contract.md
+index 35bc855..d336b99 100644
+--- a/docs/api-contract.md
++++ b/docs/api-contract.md
+@@ -9,7 +9,7 @@ Query parameters:
+ | `query`      | string                 | Keyword, maximum 160 characters                                       |
+ | `sourceIds`  | comma-separated enum   | `guardian`, `nyt`, `newsapi`; empty means all                         |
+ | `categories` | comma-separated enum   | business, technology, science, sports, health, entertainment, general |
+-| `authors`    | comma-separated string | Case-insensitive normalized-author match                              |
++| `authors`    | comma-separated string | Exact case-insensitive match against normalized canonical authors     |
+ | `dateFrom`   | `YYYY-MM-DD`           | Inclusive lower bound                                                 |
+ | `dateTo`     | `YYYY-MM-DD`           | Inclusive upper bound                                                 |
+ 
+@@ -24,7 +24,7 @@ Response:
+       "title": "Article title",
+       "description": "Optional summary",
+       "imageUrl": "https://example.com/image.jpg",
+-      "author": "Author Name",
++      "authors": ["Author One", "Author Two"],
+       "publishedAt": "2026-08-04T12:00:00.000Z",
+       "keywords": ["optional"],
+       "categories": ["technology"],
+@@ -37,6 +37,7 @@ Response:
+       "providerId": "nyt",
+       "status": "error",
+       "articleCount": 0,
++      "errorCode": "invalid_response",
+       "errorMessage": "This source is temporarily unavailable."
+     }
+   ],
+@@ -59,3 +60,5 @@ Errors use this envelope:
+ ## Provider failures
+ 
+ Provider failures keep successful articles from other sources. Failed provider entries include a safe `errorCode` (`timeout`, `rate_limited`, `unauthorized`, `invalid_response`, `network_error`, `aborted`, or `unknown`) and a generic user-facing `errorMessage`. Raw upstream response bodies and credentials are never returned to the client.
++
++Provider timestamps must pass ISO date-time validation before mapping. Malformed timestamps are classified as `invalid_response`; mappers never call `toISOString()` on an unvalidated provider value.
+diff --git a/docs/architecture.md b/docs/architecture.md
+index 68fce56..e5bdec5 100644
+--- a/docs/architecture.md
++++ b/docs/architecture.md
+@@ -40,16 +40,23 @@ GET /api/feed
+   → validate normalized query
+   → select providers
+   → request concurrently
+-  → validate external payloads
++  → validate external payloads and timestamps
++  → normalize provider bylines into canonical author arrays
+   → map to Article
+   → isolate provider failures
+-  → apply normalized author filter
++  → apply exact case-insensitive canonical-author filtering
+   → sort by publishedAt descending
+   → validate unified response
+ ```
+ 
+ Provider-specific query translation and response mapping are confined to each adapter. The aggregator knows only the `NewsProvider` interface.
+ 
++## Author personalization
++
++Provider bylines are untrusted presentation strings, not stable identities. Each adapter normalizes values such as `By Jane Smith, Reuters` or `Jane Smith and John Doe` into a canonical `authors: string[]` contract. Feed filtering compares canonical names case-insensitively instead of comparing a preference with the complete upstream byline.
++
++The preferences page reads authors from successful feed entries already cached by TanStack Query. Suggestions are grouped with the provider ids where they were observed. Manual entry remains available, and selected authors are explicitly marked when they were discovered but are unavailable from the currently selected providers.
++
+ ## Adding a fourth provider
+ 
+ 1. Add a provider directory with config, request mapper, runtime response schema, mapper, client, adapter, and tests.
+diff --git a/docs/production-readiness-validation.md b/docs/production-readiness-validation.md
+new file mode 100644
+index 0000000..4861284
+--- /dev/null
++++ b/docs/production-readiness-validation.md
+@@ -0,0 +1,58 @@
++# Production-readiness validation
++
++This report records what is enforced by source, unit tests, browser tests, and CI. It deliberately does not invent Lighthouse numbers that were not measured against a deployed build.
++
++## Before-and-after evidence
++
++| Area | Review baseline | Revision evidence | Result to record after deployment |
++| --- | --- | --- | --- |
++| Article placeholder contrast | Lighthouse reported 4.22:1, below WCAG AA for normal text. | Placeholder is now `#475467` on `#e8edf3`, a calculated contrast of 6.53:1. The Playwright axe gate covers WCAG A/AA rules. | Capture the Accessibility score and attach the Lighthouse report. |
++| LCP article image | The first article image was lazy-loaded and the review reported roughly three seconds of resource-load delay. | The first visible article image is eager, has `fetchpriority="high"`, and has explicit `460x340` dimensions. Later images remain lazy. Playwright asserts these attributes. | Capture mobile and desktop LCP values from the same deployed URL and test profile used for the baseline. |
++| Form accessibility | Visible labels and validation messages were not consistently programmatically associated. | Shared `Input` generates a stable id, binds `label[for]`, preserves explicit `aria-invalid`, and composes hint/error ids in `aria-describedby`. Unit and axe tests enforce the behavior. | No manual exception expected. Record axe and Lighthouse results. |
++| CSP | A browser CSP issue was reported despite source-level security controls. | All React inline style props were removed. Drawer scroll locking now toggles a CSS class instead of mutating `body.style`. CSP blocks inline script/style attributes and allowlists only the configured Sentry ingest origin. Unit and browser tests assert headers and listen for runtime CSP violations. | Verify the deployed response headers and browser console with monitoring both disabled and enabled. |
++| Date validation | The API rejected descending ranges, but the form allowed invalid drafts without clear reciprocal feedback. | Date inputs now set reciprocal `min`/`max`, expose an inline alert, preserve the draft, and prevent mobile Apply until valid. Desktop never commits the invalid endpoint. Unit and Playwright coverage are included. | No manual exception expected. |
++
++The feed remains client-fetched, so a provider image URL cannot appear in the initial HTML document without introducing SSR/streaming or a server-generated preload contract. This revision removes the avoidable lazy-loading delay and adds a high-priority hint; the remaining initial-document discovery limitation is explicit rather than hidden behind a false Lighthouse claim.
++
++## Automated gates
++
++A clean CI run must produce evidence for all of the following:
++
++1. ESLint, import-boundary validation, and CSS custom-property validation.
++2. Strict client and server TypeScript checks.
++3. Vitest unit and module tests, including accessibility semantics, author normalization, malformed provider timestamps, CSP directives, and feed failure classification.
++4. Production client/server builds and `dist/bundle-report.html` with gzip and Brotli sizes.
++5. Chromium desktop and mobile journeys, including axe WCAG checks and response-header assertions.
++6. A Firefox smoke journey for loading and searching the feed.
++7. Docker Compose configuration, image build, startup, and health verification.
++
++Test counts and bundle sizes are intentionally read from the CI logs and generated artifacts instead of being hard-coded here; hard-coded values become false as soon as a test is added or a bundle changes.
++
++## Manual release verification
++
++Run against the exact release candidate, not the Vite development server:
++
++```bash
++NEWS_PROVIDER_MODE=mock pnpm build
++NEWS_PROVIDER_MODE=mock pnpm start
++pnpm test:e2e
++```
++
++Then capture:
++
++- Lighthouse mobile and desktop reports for `/`, including LCP, CLS, INP/TBT proxy, Accessibility, Best Practices, and the LCP request-discovery diagnostics;
++- browser DevTools `securitypolicyviolation` events and response headers with no Sentry DSN;
++- the same CSP check with `SENTRY_DSN` and `VITE_SENTRY_DSN` configured to the same project DSN;
++- `dist/bundle-report.html` and the production asset sizes;
++- the CI run URL and `quality-gate-*` artifacts tied to the release commit.
++
++## Known production limitations
++
++The following remain deliberately outside the five-day assessment scope:
++
++- globally consistent pagination across providers with incompatible paging models;
++- authentication and server-synchronized preferences;
++- semantic cross-provider deduplication, clustering, or recommendation ranking;
++- long-term production operation, quota dashboards, WAF controls, and managed secret rotation.
++
++These are not forgotten features. Adding them without product requirements would increase architecture and operational cost while weakening the assignment's KISS constraint.
+diff --git a/docs/security.md b/docs/security.md
+index de7b422..6587891 100644
+--- a/docs/security.md
++++ b/docs/security.md
+@@ -1,14 +1,20 @@
+ # Security
+ 
+ - Provider API keys exist only in the server environment.
+-- No secret is exposed through `VITE_` variables or serialized BFF errors.
+-- Helmet applies CSP, frame, MIME, and related browser protections.
++- No provider secret is exposed through `VITE_` variables or serialized BFF errors.
++- Helmet applies CSP, frame, MIME, referrer, and related browser protections.
++- CSP uses `script-src 'self'`, `style-src 'self'`, and blocks script/style attributes; it does not grant `unsafe-inline`.
++- The mobile drawer locks scrolling with a generated CSS class instead of mutating `body.style`, so the interaction remains compatible with strict `style-src-attr 'none'`.
++- When monitoring is enabled, the server derives exactly one `connect-src` origin from `SENTRY_DSN`. `VITE_SENTRY_DSN` embeds the client DSN at build time; both values should identify the same Sentry project.
++- Docker Compose passes the client monitoring values as build arguments and the server DSN at runtime.
+ - API requests are rate limited.
+ - JSON bodies have a small size limit.
+ - Request IDs support incident correlation without logging authorization or cookie headers.
+ - Pino redacts common secret fields.
+ - External URLs open with `noopener noreferrer`.
+-- External API payloads are untrusted and validated with Zod.
++- External API payloads are untrusted and validated with Zod, including provider timestamps.
+ - The container runs as an unprivileged user.
+ 
+-For a public production system, add upstream WAF controls, managed secret storage, observability export, provider quota dashboards, and dependency/SBOM scanning.
++Unit tests assert the generated directives and Sentry origin. Playwright asserts production response headers and listens for browser `securitypolicyviolation` events while opening the mobile drawer.
++
++For a public production system, add upstream WAF controls, managed secret storage, observability export, provider quota dashboards, dependency/SBOM scanning, and automated deployed-environment header monitoring.
+diff --git a/docs/testing-strategy.md b/docs/testing-strategy.md
+index ed6f59e..1f28211 100644
+--- a/docs/testing-strategy.md
++++ b/docs/testing-strategy.md
+@@ -5,12 +5,15 @@
+ Colocated Vitest tests cover the behavior with the highest architectural risk:
+ 
+ - publication-date sorting and deterministic ties;
+-- partial provider failure isolation;
++- partial provider failure isolation and `invalid_response` classification;
+ - selected-provider execution;
+-- normalized author filtering;
++- canonical multi-author normalization and exact case-insensitive filtering;
++- malformed timestamp fixtures for Guardian, New York Times, and NewsAPI;
+ - provider request translation and response mapping;
+-- URL filter round-tripping;
++- URL filter round-tripping and date-range validation;
+ - cancellation and flushing of debounced URL filter patches;
++- stable input label, hint, error, and `aria-invalid` semantics;
++- CSP directives and Sentry ingest-origin allowlisting;
+ - versioned preferences and corrupted-storage recovery.
+ 
+ Provider tests use fixtures or injected fakes. CI must never call live news APIs.
+@@ -20,12 +23,18 @@ Provider tests use fixtures or injected fakes. CI must never call live news APIs
+ Playwright covers:
+ 
+ - keyword search and URL synchronization;
+-- mobile draft filtering, Cancel/close, Apply, and Reset behavior;
++- mobile draft filtering, close, Apply, and Reset behavior;
++- reciprocal date constraints, preserved invalid drafts, and disabled Apply;
+ - filtered URL reload;
+-- preference persistence and personalized feed request;
+-- partial-provider warning while successful articles remain visible.
++- preference persistence;
++- discovery of canonical authors and provider-availability feedback;
++- partial-provider warning while successful articles remain visible;
++- LCP image priority and explicit dimensions;
++- strict response headers and a runtime CSP-violation listener;
++- axe WCAG A/AA checks for key routes and the mobile modal state;
++- a Firefox load-and-search smoke journey.
+ 
+-The CI browser job installs Chromium and runs both the desktop Chromium and mobile Chromium projects with `NEWS_PROVIDER_MODE=mock`. Failed runs upload the HTML report as `playwright-report-<commit-sha>`.
++The CI browser job installs Chromium and Firefox. Chromium runs the deeper desktop/mobile suite; Firefox runs the focused secondary-engine smoke journey. Failed runs upload the HTML report as `playwright-report-<commit-sha>`.
+ 
+ ## Quality gate
+ 
+@@ -37,10 +46,10 @@ The CI workflow runs these gates from a clean checkout:
+ 4. `pnpm test`
+ 5. `pnpm build`
+ 6. `pnpm test:e2e`
+-7. `docker build .`
+-8. `docker compose up` using the image built for the exact commit
++7. `docker compose config`
++8. `docker compose up --build`
+ 9. a health check against `/api/health`
+ 
+ Every job writes machine-readable commit metadata and command logs. Successful source builds upload `build-<commit-sha>`. Source, browser, and container evidence is uploaded separately as `quality-gate-*-<commit-sha>`, so every artifact is tied directly to `GITHUB_SHA` rather than to screenshots.
+ 
+-`pnpm check` remains the local source quality gate and runs lint, architecture boundaries, strict type checks, unit tests, and both production builds. The Docker build repeats that source gate before producing the runtime image.
++`pnpm check` remains the local source quality gate and runs lint, architecture boundaries, CSS custom-property checks, strict type checks, unit tests, and both production builds. The Docker build repeats that source gate before producing the runtime image.
+diff --git a/package.json b/package.json
+index db77cf1..2dd7eec 100644
+--- a/package.json
++++ b/package.json
+@@ -16,7 +16,7 @@
+     "build:server": "tsup src/server/index.ts --tsconfig tsconfig.server.json --format esm --platform node --target node22 --out-dir dist/server --sourcemap",
+     "start": "node --env-file-if-exists=.env --env-file-if-exists=.env.local dist/server/index.js",
+     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+-    "lint": "eslint . && node scripts/check-import-boundaries.mjs",
++    "lint": "eslint . && node scripts/check-import-boundaries.mjs && node scripts/check-css-custom-properties.mjs",
+     "typecheck": "tsc --noEmit -p tsconfig.client.json && tsc --noEmit -p tsconfig.server.json",
+     "test": "vitest run",
+     "test:watch": "vitest",
+@@ -54,6 +54,7 @@
+     "@types/supertest": "^6.0.3",
+     "@vitejs/plugin-react": "^5.0.3",
+     "@vitest/coverage-v8": "^3.2.4",
++    "axe-core": "4.10.3",
+     "concurrently": "^9.2.1",
+     "eslint": "^9.36.0",
+     "eslint-plugin-react-hooks": "^6.0.0",
+diff --git a/playwright.config.ts b/playwright.config.ts
+index 8603435..e05399e 100644
+--- a/playwright.config.ts
++++ b/playwright.config.ts
+@@ -1,6 +1,7 @@
+ import { defineConfig, devices } from '@playwright/test';
+ 
+ const port = 4173;
++const crossBrowserSmoke = /cross-browser-smoke\.spec\.ts/;
+ 
+ export default defineConfig({
+   testDir: './tests/e2e',
+@@ -20,12 +21,19 @@ export default defineConfig({
+   projects: [
+     {
+       name: 'desktop-chromium',
++      testIgnore: crossBrowserSmoke,
+       use: { ...devices['Desktop Chrome'] },
+     },
+     {
+       name: 'mobile-chromium',
++      testIgnore: crossBrowserSmoke,
+       use: { ...devices['Pixel 7'] },
+     },
++    {
++      name: 'desktop-firefox',
++      testMatch: crossBrowserSmoke,
++      use: { ...devices['Desktop Firefox'] },
++    },
+   ],
+ 
+   webServer: {
+diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
+index 0a8e113..fcdda48 100644
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -81,6 +81,9 @@ importers:
+       '@vitejs/plugin-react':
+         specifier: ^5.0.3
+         version: 5.2.0(vite@8.2.0(@types/node@24.13.3)(esbuild@0.27.7)(tsx@4.23.5))
++      axe-core:
++        specifier: 4.10.3
++        version: 4.10.3
+       '@vitest/coverage-v8':
+         specifier: ^3.2.4
+         version: 3.2.7(vitest@3.2.7(@types/node@24.13.3)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.33.0)(tsx@4.23.5))
+@@ -1199,6 +1202,10 @@ packages:
+     resolution: {integrity: sha512-kNOjDqAh7px0XWNI+4QbzoiR/nTkHAWNud2uvnJquD1/x5a7EQZMJT0AczqK0Qn67oY/TTQ1LbUKajZpp3I9tQ==}
+     engines: {node: '>=8.0.0'}
+ 
++  axe-core@4.10.3:
++    resolution: {integrity: sha512-Xm7bpRXnDSX2YE2YFfBk2FnF0ep6tmG7xPh8iHee8MIcrgq762Nkce856dYtJYLkuIoYZvGfTs/PbZhideTcEg==}
++    engines: {node: '>=4'}
++
+   balanced-match@1.0.2:
+     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
+ 
+@@ -3797,6 +3804,8 @@ snapshots:
+ 
+   atomic-sleep@1.0.0: {}
+ 
++  axe-core@4.10.3: {}
++
+   balanced-match@1.0.2: {}
+ 
+   balanced-match@4.0.4: {}
+diff --git a/scripts/check-css-custom-properties.mjs b/scripts/check-css-custom-properties.mjs
+new file mode 100644
+index 0000000..2d76290
+--- /dev/null
++++ b/scripts/check-css-custom-properties.mjs
+@@ -0,0 +1,48 @@
++import { readdir, readFile } from 'node:fs/promises';
++import { extname, join, relative } from 'node:path';
++import { fileURLToPath } from 'node:url';
++
++const root = fileURLToPath(new URL('../src/client', import.meta.url));
++
++const collectCssFiles = async (directory) => {
++  const entries = await readdir(directory, { withFileTypes: true });
++  const files = await Promise.all(
++    entries.map(async (entry) => {
++      const path = join(directory, entry.name);
++      if (entry.isDirectory()) return collectCssFiles(path);
++      return extname(entry.name) === '.css' ? [path] : [];
++    }),
++  );
++  return files.flat();
++};
++
++const files = await collectCssFiles(root);
++const sources = await Promise.all(
++  files.map(async (file) => ({ file, source: await readFile(file, 'utf8') })),
++);
++
++const defined = new Set();
++for (const { source } of sources) {
++  for (const match of source.matchAll(/^\s*(--[a-z0-9-]+)\s*:/gim)) {
++    defined.add(match[1]);
++  }
++}
++
++const errors = [];
++for (const { file, source } of sources) {
++  for (const match of source.matchAll(/var\(\s*(--[a-z0-9-]+)([^)]*)\)/gim)) {
++    const [, property, remainder] = match;
++    const hasFallback = remainder.includes(',');
++    if (!defined.has(property) && !hasFallback) {
++      const line = source.slice(0, match.index).split('\n').length;
++      errors.push(`${relative(process.cwd(), file)}:${line} ${property}`);
++    }
++  }
++}
++
++if (errors.length > 0) {
++  console.error('Undefined CSS custom properties:\n' + errors.join('\n'));
++  process.exitCode = 1;
++} else {
++  console.log(`CSS custom-property check passed (${files.length} files).`);
++}
+diff --git a/src/client/app/providers/AppErrorBoundary.module.css b/src/client/app/providers/AppErrorBoundary.module.css
+new file mode 100644
+index 0000000..b856f23
+--- /dev/null
++++ b/src/client/app/providers/AppErrorBoundary.module.css
+@@ -0,0 +1,3 @@
++.page {
++  padding-block: 4rem;
++}
+diff --git a/src/client/app/providers/AppErrorBoundary.tsx b/src/client/app/providers/AppErrorBoundary.tsx
+index f4e4d53..c4d6c92 100644
+--- a/src/client/app/providers/AppErrorBoundary.tsx
++++ b/src/client/app/providers/AppErrorBoundary.tsx
+@@ -2,6 +2,7 @@ import * as Sentry from '@sentry/react';
+ import { Component, type ErrorInfo, type ReactNode } from 'react';
+ import { ErrorState } from '@client/shared/ui/ErrorState';
+ import { Button } from '@client/shared/ui/Button';
++import styles from './AppErrorBoundary.module.css';
+ 
+ interface State {
+   hasError: boolean;
+@@ -32,7 +33,7 @@ export class AppErrorBoundary extends Component<
+             </main>
+           }
+         >
+-          <main className="container" style={{ padding: '64px 0' }}>
++          <main id="main-content" className={`container ${styles.page}`}>
+             <ErrorState
+               action={
+                 <Button type="button" onClick={() => window.location.reload()}>
+diff --git a/src/client/app/providers/RouteChunkBoundary.module.css b/src/client/app/providers/RouteChunkBoundary.module.css
+new file mode 100644
+index 0000000..53d5176
+--- /dev/null
++++ b/src/client/app/providers/RouteChunkBoundary.module.css
+@@ -0,0 +1,11 @@
++.page {
++  display: grid;
++  gap: 1rem;
++  padding-block: 4rem;
++}
++
++.message {
++  margin: 0;
++  color: var(--color-text-muted);
++  text-align: center;
++}
+diff --git a/src/client/app/providers/RouteChunkBoundary.tsx b/src/client/app/providers/RouteChunkBoundary.tsx
+new file mode 100644
+index 0000000..5a91cc0
+--- /dev/null
++++ b/src/client/app/providers/RouteChunkBoundary.tsx
+@@ -0,0 +1,55 @@
++import * as Sentry from '@sentry/react';
++import { Component, type ErrorInfo, type ReactNode } from 'react';
++import { Button } from '@client/shared/ui/Button';
++import { ErrorState } from '@client/shared/ui/ErrorState';
++import styles from './RouteChunkBoundary.module.css';
++
++interface RouteChunkBoundaryProps {
++  children: ReactNode;
++}
++
++interface RouteChunkBoundaryState {
++  error: Error | null;
++}
++
++export class RouteChunkBoundary extends Component<
++  RouteChunkBoundaryProps,
++  RouteChunkBoundaryState
++> {
++  public state: RouteChunkBoundaryState = { error: null };
++
++  public static getDerivedStateFromError(
++    error: Error,
++  ): RouteChunkBoundaryState {
++    return { error };
++  }
++
++  public componentDidCatch(error: Error, info: ErrorInfo): void {
++    Sentry.captureException(error, {
++      tags: { boundary: 'route-chunk' },
++      contexts: { react: { componentStack: info.componentStack ?? '' } },
++    });
++  }
++
++  public render() {
++    if (this.state.error) {
++      return (
++        <main id="main-content" className={`container ${styles.page}`}>
++          <ErrorState
++            action={
++              <Button type="button" onClick={() => window.location.reload()}>
++                Reload page
++              </Button>
++            }
++          />
++          <p className={styles.message}>
++            The route bundle could not be loaded. Reload to retry with the
++            latest deployed assets.
++          </p>
++        </main>
++      );
++    }
++
++    return this.props.children;
++  }
++}
+diff --git a/src/client/app/router.tsx b/src/client/app/router.tsx
+index 5160a94..e148da2 100644
+--- a/src/client/app/router.tsx
++++ b/src/client/app/router.tsx
+@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
+ import { createBrowserRouter } from 'react-router-dom';
+ import { App } from './App';
+ import { PageLoadingSkeleton } from '@client/shared/ui/PageLoadingSkeleton/PageLoadingSkeleton';
++import { RouteChunkBoundary } from './providers/RouteChunkBoundary';
+ 
+ const NewsPage = lazy(() =>
+   import('@client/pages/news').then((module) => ({
+@@ -28,7 +29,9 @@ const NotFoundPage = lazy(() =>
+ );
+ 
+ const page = (element: React.ReactNode) => (
+-  <Suspense fallback={<PageLoadingSkeleton />}>{element}</Suspense>
++  <RouteChunkBoundary>
++    <Suspense fallback={<PageLoadingSkeleton />}>{element}</Suspense>
++  </RouteChunkBoundary>
+ );
+ 
+ export const router = createBrowserRouter([
+@@ -37,7 +40,7 @@ export const router = createBrowserRouter([
+     children: [
+       {
+         path: '/',
+-        element: <NewsPage />,
++        element: page(<NewsPage />),
+       },
+       {
+         path: '/for-you',
+diff --git a/src/client/app/styles/globals.css b/src/client/app/styles/globals.css
+index d688e0b..7a640b8 100644
+--- a/src/client/app/styles/globals.css
++++ b/src/client/app/styles/globals.css
+@@ -20,8 +20,9 @@ body {
+   background: #bae6fd;
+ }
+ :focus-visible {
+-  outline: 3px solid #7dd3fc;
++  outline: 2px solid var(--color-on-brand);
+   outline-offset: 2px;
++  box-shadow: 0 0 0 4px var(--color-focus);
+ }
+ 
+ .container {
+@@ -55,12 +56,6 @@ body {
+   border: 0;
+ }
+ 
+-:root {
+-  --sb-track-color: #e8e8e8;
+-  --sb-thumb-color: #b3b3b3;
+-  --sb-size: 11px;
+-}
+-
+ /* Chrome, Edge, Safari */
+ *::-webkit-scrollbar {
+   width: var(--scrollbar-size);
+diff --git a/src/client/app/styles/tokens.css b/src/client/app/styles/tokens.css
+index a5f3875..0ebcf51 100644
+--- a/src/client/app/styles/tokens.css
++++ b/src/client/app/styles/tokens.css
+@@ -2,13 +2,16 @@
+   --color-bg: #f6f7f9;
+   --color-surface: #ffffff;
+   --color-surface-muted: #eef2f6;
++  --color-surface-hover: #e4eaf1;
+   --color-text: #111827;
+-  --color-text-muted: #667085;
++  --color-text-muted: #626b79;
+   --color-border: #d9e0e8;
+   --color-brand: #101828;
+   --color-brand-strong: #0b1220;
++  --color-on-brand: #ffffff;
+   --color-accent: #0369a1;
+   --color-accent-soft: #e0f2fe;
++  --color-focus: #0369a1;
+   --color-danger: #b42318;
+   --color-danger-soft: #fef3f2;
+   --color-warning: #9a6700;
+@@ -28,4 +31,8 @@
+   --space-8: 32px;
+   --space-10: 40px;
+   --content-width: 1220px;
++  --scrollbar-track: #e8e8e8;
++  --scrollbar-thumb: #8a8f98;
++  --scrollbar-thumb-hover: #667085;
++  --scrollbar-size: 11px;
+ }
+diff --git a/src/client/entities/article/ui/ArticleCard.module.css b/src/client/entities/article/ui/ArticleCard.module.css
+index 348a6b2..63d5d8a 100644
+--- a/src/client/entities/article/ui/ArticleCard.module.css
++++ b/src/client/entities/article/ui/ArticleCard.module.css
+@@ -20,7 +20,7 @@
+ }
+ .image {
+   width: 100%;
+-  height: 170px;
++  height: auto;
+   object-fit: cover;
+   border-radius: 14px;
+ }
+@@ -82,9 +82,6 @@
+     gap: 15px;
+     padding: 14px;
+   }
+-  .image {
+-    height: 190px;
+-  }
+   .footer {
+     align-items: flex-start;
+     flex-direction: column;
+diff --git a/src/client/entities/article/ui/ArticleCard.tsx b/src/client/entities/article/ui/ArticleCard.tsx
+index 733a4eb..43735a4 100644
+--- a/src/client/entities/article/ui/ArticleCard.tsx
++++ b/src/client/entities/article/ui/ArticleCard.tsx
+@@ -3,9 +3,21 @@ import { ArticleImage } from './ArticleImage';
+ import { ArticleMetadata } from './ArticleMetadata';
+ import styles from './ArticleCard.module.css';
+ 
+-export const ArticleCard = ({ article }: { article: Article }) => (
++interface ArticleCardProps {
++  article: Article;
++  isAboveTheFold?: boolean;
++}
++
++export const ArticleCard = ({
++  article,
++  isAboveTheFold = false,
++}: ArticleCardProps) => (
+   <article className={styles.card}>
+-    <ArticleImage className={styles.image} article={article} />
++    <ArticleImage
++      className={styles.image}
++      article={article}
++      isAboveTheFold={isAboveTheFold}
++    />
+     <div className={styles.content}>
+       <ArticleMetadata article={article} />
+       <h2 className={styles.title}>
+@@ -29,8 +41,10 @@ export const ArticleCard = ({ article }: { article: Article }) => (
+             </span>
+           ))}
+         </div>
+-        {article.author ? (
+-          <span className={styles.author}>By {article.author}</span>
++        {article.authors.length > 0 ? (
++          <span className={styles.author}>
++            By {article.authors.join(', ')}
++          </span>
+         ) : null}
+       </footer>
+     </div>
+diff --git a/src/client/entities/article/ui/ArticleImage.module.css b/src/client/entities/article/ui/ArticleImage.module.css
+new file mode 100644
+index 0000000..ce0256d
+--- /dev/null
++++ b/src/client/entities/article/ui/ArticleImage.module.css
+@@ -0,0 +1,12 @@
++.media {
++  display: block;
++  aspect-ratio: 23 / 17;
++}
++
++.placeholder {
++  display: grid;
++  place-items: center;
++  background: #e8edf3;
++  color: #475467;
++  font-weight: 800;
++}
+diff --git a/src/client/entities/article/ui/ArticleImage.tsx b/src/client/entities/article/ui/ArticleImage.tsx
+index 10c3680..086dcd1 100644
+--- a/src/client/entities/article/ui/ArticleImage.tsx
++++ b/src/client/entities/article/ui/ArticleImage.tsx
+@@ -1,41 +1,43 @@
+ import { useState } from 'react';
+ import type { Article } from '@contracts/index';
+ import { getArticleImageAlt } from '../lib/get-article-image-alt';
++import styles from './ArticleImage.module.css';
+ 
+-export const ArticleImage = ({
+-  article,
+-  className,
+-}: {
++interface ArticleImageProps {
+   article: Article;
+   className?: string;
+-}) => {
++  isAboveTheFold?: boolean;
++}
++
++export const ArticleImage = ({
++  article,
++  className = '',
++  isAboveTheFold = false,
++}: ArticleImageProps) => {
+   const [failed, setFailed] = useState(false);
++  const classes = [styles.media, className].filter(Boolean).join(' ');
++
+   if (!article.imageUrl || failed) {
+     return (
+       <div
+-        className={className}
++        className={`${classes} ${styles.placeholder}`}
+         role="img"
+         aria-label="Article image unavailable"
+-        style={{
+-          display: 'grid',
+-          placeItems: 'center',
+-          background: '#e8edf3',
+-          color: '#667085',
+-          fontWeight: 800,
+-        }}
+       >
+         SIGNAL
+       </div>
+     );
+   }
++
+   return (
+     <img
+-      className={className}
++      className={classes}
+       src={article.imageUrl}
+       width={460}
+       height={340}
+       alt={getArticleImageAlt(article)}
+-      loading="lazy"
++      loading={isAboveTheFold ? 'eager' : 'lazy'}
++      fetchPriority={isAboveTheFold ? 'high' : 'auto'}
+       decoding="async"
+       onError={() => setFailed(true)}
+     />
+diff --git a/src/client/entities/article/ui/ArticleMetadata.module.css b/src/client/entities/article/ui/ArticleMetadata.module.css
+new file mode 100644
+index 0000000..415bcc0
+--- /dev/null
++++ b/src/client/entities/article/ui/ArticleMetadata.module.css
+@@ -0,0 +1,15 @@
++.metadata {
++  display: flex;
++  align-items: center;
++  flex-wrap: wrap;
++  gap: 0.625rem;
++}
++
++.separator {
++  color: var(--color-text-muted);
++}
++
++.date {
++  color: var(--color-text-muted);
++  font-size: 0.82rem;
++}
+diff --git a/src/client/entities/article/ui/ArticleMetadata.tsx b/src/client/entities/article/ui/ArticleMetadata.tsx
+index f4cfc5b..585b7d0 100644
+--- a/src/client/entities/article/ui/ArticleMetadata.tsx
++++ b/src/client/entities/article/ui/ArticleMetadata.tsx
+@@ -1,19 +1,15 @@
+ import type { Article } from '@contracts/index';
+ import { ProviderBadge } from '@client/entities/provider';
+ import { formatPublicationDate } from '../lib/format-publication-date';
++import styles from './ArticleMetadata.module.css';
+ 
+ export const ArticleMetadata = ({ article }: { article: Article }) => (
+-  <div
+-    style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}
+-  >
++  <div className={styles.metadata}>
+     <ProviderBadge id={article.source.id} name={article.source.name} />
+-    <span aria-hidden="true" style={{ color: '#98a2b3' }}>
++    <span aria-hidden="true" className={styles.separator}>
+       •
+     </span>
+-    <time
+-      dateTime={article.publishedAt}
+-      style={{ color: 'var(--color-text-muted)', fontSize: '0.82rem' }}
+-    >
++    <time className={styles.date} dateTime={article.publishedAt}>
+       {formatPublicationDate(article.publishedAt)}
+     </time>
+   </div>
+diff --git a/src/client/entities/feed/index.ts b/src/client/entities/feed/index.ts
+index 7d8aad1..5258421 100644
+--- a/src/client/entities/feed/index.ts
++++ b/src/client/entities/feed/index.ts
+@@ -1 +1,10 @@
+-export { useFeedQuery, feedQueryOptions } from './model/use-feed-query';
++export {
++  useFeedQuery,
++  feedQueryOptions,
++  feedQueryKeys,
++} from './model/use-feed-query';
++export {
++  collectDiscoveredAuthors,
++  useDiscoveredAuthors,
++  type DiscoveredAuthor,
++} from './model/use-discovered-authors';
+diff --git a/src/client/entities/feed/model/use-discovered-authors.test.ts b/src/client/entities/feed/model/use-discovered-authors.test.ts
+new file mode 100644
+index 0000000..39e5812
+--- /dev/null
++++ b/src/client/entities/feed/model/use-discovered-authors.test.ts
+@@ -0,0 +1,58 @@
++import { QueryClient } from '@tanstack/react-query';
++import { describe, expect, it } from 'vitest';
++import type { ArticleFilters, FeedResponse, ProviderId } from '@contracts/index';
++import { collectDiscoveredAuthors } from './use-discovered-authors';
++import { feedQueryKeys } from './use-feed-query';
++
++const filters: ArticleFilters = {
++  query: '',
++  sourceIds: [],
++  categories: [],
++  authors: [],
++};
++
++const createFeed = (
++  providerId: ProviderId,
++  authors: string[],
++): FeedResponse => ({
++  articles: [
++    {
++      id: `${providerId}:article`,
++      url: `https://example.com/${providerId}`,
++      title: `${providerId} article`,
++      authors,
++      publishedAt: '2026-08-04T12:00:00.000Z',
++      categories: ['technology'],
++      source: { id: providerId, name: providerId },
++    },
++  ],
++  providers: [
++    {
++      providerId,
++      status: 'success',
++      articleCount: 1,
++    },
++  ],
++  generatedAt: '2026-08-04T12:00:01.000Z',
++});
++
++describe('collectDiscoveredAuthors', () => {
++  it('deduplicates canonical names and records every provider where they occur', () => {
++    const queryClient = new QueryClient();
++
++    queryClient.setQueryData(
++      feedQueryKeys.list(filters),
++      createFeed('guardian', ['Maya Chen', 'Jordan Lee']),
++    );
++    queryClient.setQueryData(
++      feedQueryKeys.list({ ...filters, categories: ['science'] }),
++      createFeed('nyt', ['maya chen', 'Priya Raman']),
++    );
++
++    expect(collectDiscoveredAuthors(queryClient)).toEqual([
++      { name: 'Jordan Lee', sourceIds: ['guardian'] },
++      { name: 'Maya Chen', sourceIds: ['guardian', 'nyt'] },
++      { name: 'Priya Raman', sourceIds: ['nyt'] },
++    ]);
++  });
++});
+diff --git a/src/client/entities/feed/model/use-discovered-authors.ts b/src/client/entities/feed/model/use-discovered-authors.ts
+new file mode 100644
+index 0000000..3b85b2b
+--- /dev/null
++++ b/src/client/entities/feed/model/use-discovered-authors.ts
+@@ -0,0 +1,70 @@
++import { useEffect, useState } from 'react';
++import { useQueryClient, type QueryClient } from '@tanstack/react-query';
++import type { FeedResponse, ProviderId } from '@contracts/index';
++import { feedQueryKeys } from './use-feed-query';
++
++export interface DiscoveredAuthor {
++  name: string;
++  sourceIds: ProviderId[];
++}
++
++const normalizeAuthorKey = (value: string): string =>
++  value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('en-US');
++
++export const collectDiscoveredAuthors = (
++  queryClient: QueryClient,
++): DiscoveredAuthor[] => {
++  const authors = new Map<
++    string,
++    { name: string; sourceIds: Set<ProviderId> }
++  >();
++
++  const feeds = queryClient.getQueriesData<FeedResponse>({
++    queryKey: feedQueryKeys.all,
++  });
++
++  for (const [, feed] of feeds) {
++    if (!feed) continue;
++
++    for (const article of feed.articles) {
++      for (const name of article.authors) {
++        const key = normalizeAuthorKey(name);
++        const existing = authors.get(key);
++
++        if (existing) {
++          existing.sourceIds.add(article.source.id);
++        } else {
++          authors.set(key, {
++            name,
++            sourceIds: new Set([article.source.id]),
++          });
++        }
++      }
++    }
++  }
++
++  return [...authors.values()]
++    .map(({ name, sourceIds }) => ({
++      name,
++      sourceIds: [...sourceIds].sort(),
++    }))
++    .sort((left, right) => left.name.localeCompare(right.name));
++};
++
++export const useDiscoveredAuthors = (): DiscoveredAuthor[] => {
++  const queryClient = useQueryClient();
++  const [authors, setAuthors] = useState<DiscoveredAuthor[]>(() =>
++    collectDiscoveredAuthors(queryClient),
++  );
++
++  useEffect(() => {
++    const refresh = (): void => {
++      setAuthors(collectDiscoveredAuthors(queryClient));
++    };
++
++    refresh();
++    return queryClient.getQueryCache().subscribe(refresh);
++  }, [queryClient]);
++
++  return authors;
++};
+diff --git a/src/client/features/filter-articles/index.ts b/src/client/features/filter-articles/index.ts
+index 3ddc5b5..e874d60 100644
+--- a/src/client/features/filter-articles/index.ts
++++ b/src/client/features/filter-articles/index.ts
+@@ -3,3 +3,4 @@ export { useFilterDraft } from './model/use-filter-draft';
+ export { DateFilter } from './ui/DateFilter';
+ export { CategoryFilter } from './ui/CategoryFilter';
+ export { SourceFilter } from './ui/SourceFilter';
++export { getDateRangeError } from './lib/get-date-range-error';
+diff --git a/src/client/features/filter-articles/lib/get-date-range-error.test.ts b/src/client/features/filter-articles/lib/get-date-range-error.test.ts
+new file mode 100644
+index 0000000..88f8060
+--- /dev/null
++++ b/src/client/features/filter-articles/lib/get-date-range-error.test.ts
+@@ -0,0 +1,20 @@
++import { describe, expect, it } from 'vitest';
++import { getDateRangeError } from './get-date-range-error';
++
++describe('getDateRangeError', () => {
++  it('accepts missing, equal, and ascending dates', () => {
++    expect(getDateRangeError({})).toBeNull();
++    expect(
++      getDateRangeError({ dateFrom: '2026-01-01', dateTo: '2026-01-01' }),
++    ).toBeNull();
++    expect(
++      getDateRangeError({ dateFrom: '2026-01-01', dateTo: '2026-01-02' }),
++    ).toBeNull();
++  });
++
++  it('rejects a descending range', () => {
++    expect(
++      getDateRangeError({ dateFrom: '2026-01-02', dateTo: '2026-01-01' }),
++    ).toBe('The start date must be on or before the end date.');
++  });
++});
+diff --git a/src/client/features/filter-articles/lib/get-date-range-error.ts b/src/client/features/filter-articles/lib/get-date-range-error.ts
+new file mode 100644
+index 0000000..51ab916
+--- /dev/null
++++ b/src/client/features/filter-articles/lib/get-date-range-error.ts
+@@ -0,0 +1,13 @@
++import type { ArticleFilters } from '@contracts/index';
++
++export const getDateRangeError = (
++  filters: Pick<ArticleFilters, 'dateFrom' | 'dateTo'>,
++): string | null => {
++  if (!filters.dateFrom || !filters.dateTo) {
++    return null;
++  }
++
++  return filters.dateFrom <= filters.dateTo
++    ? null
++    : 'The start date must be on or before the end date.';
++};
+diff --git a/src/client/features/filter-articles/ui/CategoryFilter.tsx b/src/client/features/filter-articles/ui/CategoryFilter.tsx
+index 2c19954..d8fc7b8 100644
+--- a/src/client/features/filter-articles/ui/CategoryFilter.tsx
++++ b/src/client/features/filter-articles/ui/CategoryFilter.tsx
+@@ -1,6 +1,7 @@
+ import type { ArticleFilters, Category } from '@contracts/index';
+ import { categoryOptions } from '@client/shared/config/constants';
+ import { Checkbox } from '@client/shared/ui/Checkbox';
++import styles from './FilterOptions.module.css';
+ 
+ export const CategoryFilter = ({
+   filters,
+@@ -17,7 +18,7 @@ export const CategoryFilter = ({
+   };
+ 
+   return (
+-    <div style={{ display: 'grid', gap: 6 }}>
++    <div className={styles.options}>
+       {categoryOptions.map((option) => (
+         <Checkbox
+           key={option.id}
+diff --git a/src/client/features/filter-articles/ui/DateFilter.module.css b/src/client/features/filter-articles/ui/DateFilter.module.css
+new file mode 100644
+index 0000000..72e305e
+--- /dev/null
++++ b/src/client/features/filter-articles/ui/DateFilter.module.css
+@@ -0,0 +1,11 @@
++.fields {
++  display: grid;
++  gap: 0.5rem;
++}
++
++.error {
++  margin: 0;
++  color: var(--color-danger);
++  font-size: 0.8125rem;
++  font-weight: 650;
++}
+diff --git a/src/client/features/filter-articles/ui/DateFilter.test.tsx b/src/client/features/filter-articles/ui/DateFilter.test.tsx
+new file mode 100644
+index 0000000..386c523
+--- /dev/null
++++ b/src/client/features/filter-articles/ui/DateFilter.test.tsx
+@@ -0,0 +1,79 @@
++// @vitest-environment jsdom
++import { act } from 'react';
++import { createRoot } from 'react-dom/client';
++import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
++import type { ArticleFilters } from '@contracts/index';
++import { DateFilter } from './DateFilter';
++
++const baseFilters: ArticleFilters = {
++  query: '',
++  sourceIds: [],
++  categories: [],
++  authors: [],
++};
++
++const mountedRoots: Array<ReturnType<typeof createRoot>> = [];
++
++beforeEach(() => {
++  (
++    globalThis as typeof globalThis & {
++      IS_REACT_ACT_ENVIRONMENT?: boolean;
++    }
++  ).IS_REACT_ACT_ENVIRONMENT = true;
++});
++
++afterEach(() => {
++  for (const root of mountedRoots.splice(0)) {
++    act(() => root.unmount());
++  }
++});
++
++const renderDateFilter = (filters: ArticleFilters) => {
++  const container = document.createElement('div');
++  const root = createRoot(container);
++  mountedRoots.push(root);
++
++  act(() => {
++    root.render(<DateFilter filters={filters} onChange={vi.fn()} />);
++  });
++
++  return container;
++};
++
++describe('DateFilter', () => {
++  it('sets reciprocal constraints and exposes an accessible range error', () => {
++    const container = renderDateFilter({
++      ...baseFilters,
++      dateFrom: '2026-02-01',
++      dateTo: '2026-01-01',
++    });
++
++    const inputs = container.querySelectorAll('input');
++    const from = inputs.item(0);
++    const to = inputs.item(1);
++    const error = container.querySelector('[role="alert"]');
++
++    expect(from.max).toBe('2026-01-01');
++    expect(to.min).toBe('2026-02-01');
++    expect(from.getAttribute('aria-invalid')).toBe('true');
++    expect(to.getAttribute('aria-invalid')).toBe('true');
++    expect(error?.textContent).toContain(
++      'The start date must be on or before the end date.',
++    );
++    expect(from.getAttribute('aria-describedby')).toBe(error?.id);
++    expect(to.getAttribute('aria-describedby')).toBe(error?.id);
++  });
++
++  it('does not mark an ascending range as invalid', () => {
++    const container = renderDateFilter({
++      ...baseFilters,
++      dateFrom: '2026-01-01',
++      dateTo: '2026-02-01',
++    });
++
++    for (const input of container.querySelectorAll('input')) {
++      expect(input.getAttribute('aria-invalid')).toBe('false');
++    }
++    expect(container.querySelector('[role="alert"]')).toBeNull();
++  });
++});
+diff --git a/src/client/features/filter-articles/ui/DateFilter.tsx b/src/client/features/filter-articles/ui/DateFilter.tsx
+index 82505de..d5627a9 100644
+--- a/src/client/features/filter-articles/ui/DateFilter.tsx
++++ b/src/client/features/filter-articles/ui/DateFilter.tsx
+@@ -1,5 +1,8 @@
++import { useId } from 'react';
+ import type { ArticleFilters } from '@contracts/index';
+ import { Input } from '@client/shared/ui/Input';
++import { getDateRangeError } from '../lib/get-date-range-error';
++import styles from './DateFilter.module.css';
+ 
+ export const DateFilter = ({
+   filters,
+@@ -7,31 +10,46 @@ export const DateFilter = ({
+ }: {
+   filters: ArticleFilters;
+   onChange: (next: ArticleFilters) => void;
+-}) => (
+-  <div
+-    style={{
+-      display: 'flex',
+-      flexDirection: 'column',
+-      gridTemplateColumns: '1fr 1fr',
+-      gap: 6,
+-    }}
+-  >
+-    <Input
+-      label="From"
+-      type="date"
+-      value={filters.dateFrom ?? ''}
+-      onChange={(event) =>
+-        onChange({ ...filters, dateFrom: event.target.value || undefined })
+-      }
+-    />
+-    <Input
+-      label="To"
+-      type="date"
+-      value={filters.dateTo ?? ''}
+-      min={filters.dateFrom}
+-      onChange={(event) =>
+-        onChange({ ...filters, dateTo: event.target.value || undefined })
+-      }
+-    />
+-  </div>
+-);
++}) => {
++  const reactId = useId().replaceAll(':', '');
++  const errorId = `date-range-${reactId}-error`;
++  const error = getDateRangeError(filters);
++
++  return (
++    <div
++      className={styles.fields}
++      role="group"
++      aria-label="Publication date range"
++    >
++      <Input
++        id={`date-from-${reactId}`}
++        label="From"
++        type="date"
++        value={filters.dateFrom ?? ''}
++        max={filters.dateTo}
++        aria-invalid={Boolean(error)}
++        aria-describedby={error ? errorId : undefined}
++        onChange={(event) =>
++          onChange({ ...filters, dateFrom: event.target.value || undefined })
++        }
++      />
++      <Input
++        id={`date-to-${reactId}`}
++        label="To"
++        type="date"
++        value={filters.dateTo ?? ''}
++        min={filters.dateFrom}
++        aria-invalid={Boolean(error)}
++        aria-describedby={error ? errorId : undefined}
++        onChange={(event) =>
++          onChange({ ...filters, dateTo: event.target.value || undefined })
++        }
++      />
++      {error ? (
++        <p className={styles.error} id={errorId} role="alert">
++          {error}
++        </p>
++      ) : null}
++    </div>
++  );
++};
+diff --git a/src/client/features/filter-articles/ui/FilterOptions.module.css b/src/client/features/filter-articles/ui/FilterOptions.module.css
+new file mode 100644
+index 0000000..66f0eb4
+--- /dev/null
++++ b/src/client/features/filter-articles/ui/FilterOptions.module.css
+@@ -0,0 +1,4 @@
++.options {
++  display: grid;
++  gap: 0.375rem;
++}
+diff --git a/src/client/features/filter-articles/ui/SourceFilter.tsx b/src/client/features/filter-articles/ui/SourceFilter.tsx
+index 3675392..20bf58f 100644
+--- a/src/client/features/filter-articles/ui/SourceFilter.tsx
++++ b/src/client/features/filter-articles/ui/SourceFilter.tsx
+@@ -1,6 +1,7 @@
+ import type { ArticleFilters, ProviderId } from '@contracts/index';
+ import { providerOptions } from '@client/shared/config/constants';
+ import { Checkbox } from '@client/shared/ui/Checkbox';
++import styles from './FilterOptions.module.css';
+ 
+ export const SourceFilter = ({
+   filters,
+@@ -17,7 +18,7 @@ export const SourceFilter = ({
+   };
+ 
+   return (
+-    <div style={{ display: 'grid', gap: 6 }}>
++    <div className={styles.options}>
+       {providerOptions.map((option) => (
+         <Checkbox
+           key={option.id}
+diff --git a/src/client/pages/news/NewsPage.tsx b/src/client/pages/news/NewsPage.tsx
+index f195b4b..0383660 100644
+--- a/src/client/pages/news/NewsPage.tsx
++++ b/src/client/pages/news/NewsPage.tsx
+@@ -1,6 +1,9 @@
+ import type { ArticleFilters } from '@contracts/index';
+ import type { AppOutletContext } from '@client/shared/lib/router/app-outlet-context';
+-import { useArticleFilters } from '@client/features/filter-articles';
++import {
++  getDateRangeError,
++  useArticleFilters,
++} from '@client/features/filter-articles';
+ import { normalizeSearchQuery } from '@client/features/search-articles';
+ import {
+   DesktopFilters,
+@@ -66,6 +69,11 @@ export const NewsPage = () => {
+ 
+       setDesktopFilters(nextFilters);
+ 
++      if (getDateRangeError(nextFilters)) {
++        cancelPendingFilterPatch();
++        return;
++      }
++
+       if (queryChanged) {
+         patchFiltersDebounced(
+           {
+@@ -81,10 +89,19 @@ export const NewsPage = () => {
+         query: normalizeSearchQuery(nextFilters.query),
+       });
+     },
+-    [desktopFilters.query, patchFiltersDebounced, setFilters],
++    [
++      cancelPendingFilterPatch,
++      desktopFilters.query,
++      patchFiltersDebounced,
++      setFilters,
++    ],
+   );
+ 
+   const applyFilters = useCallback(() => {
++    if (getDateRangeError(filterDraft)) {
++      return;
++    }
++
+     const nextFilters = {
+       ...filterDraft,
+       query: normalizeSearchQuery(filterDraft.query),
+@@ -111,6 +128,7 @@ export const NewsPage = () => {
+   return (
+     <main id="main-content" className={styles.page}>
+       <div className="container">
++        <h1 className="srOnly">Latest news</h1>
+         <div className={styles.searchRow}>
+           <MobileFilterDrawer
+             open={isFilterDrawerOpen}
+diff --git a/src/client/pages/not-found/NotFoundPage.module.css b/src/client/pages/not-found/NotFoundPage.module.css
+new file mode 100644
+index 0000000..b856f23
+--- /dev/null
++++ b/src/client/pages/not-found/NotFoundPage.module.css
+@@ -0,0 +1,3 @@
++.page {
++  padding-block: 4rem;
++}
+diff --git a/src/client/pages/not-found/NotFoundPage.tsx b/src/client/pages/not-found/NotFoundPage.tsx
+index 2d5ffc0..3ed1013 100644
+--- a/src/client/pages/not-found/NotFoundPage.tsx
++++ b/src/client/pages/not-found/NotFoundPage.tsx
+@@ -2,11 +2,12 @@ import { useNavigate } from 'react-router-dom';
+ import { routes } from '@client/shared/config/routes';
+ import { Button } from '@client/shared/ui/Button';
+ import { EmptyState } from '@client/shared/ui/EmptyState';
++import styles from './NotFoundPage.module.css';
+ 
+ export const NotFoundPage = () => {
+   const navigate = useNavigate();
+   return (
+-    <main id="main-content" className="container" style={{ padding: '64px 0' }}>
++    <main id="main-content" className={`container ${styles.page}`}>
+       <EmptyState
+         title="Page not found"
+         description="The route does not exist or was moved."
+diff --git a/src/client/pages/preferences/PreferencesPage.tsx b/src/client/pages/preferences/PreferencesPage.tsx
+index 2ecc506..c6316bf 100644
+--- a/src/client/pages/preferences/PreferencesPage.tsx
++++ b/src/client/pages/preferences/PreferencesPage.tsx
+@@ -1,9 +1,11 @@
++import { useDiscoveredAuthors } from '@client/entities/feed';
+ import { useFeedPreferences } from '@client/entities/feed-preferences';
+ import { PreferencesForm } from '@client/widgets/preferences-form';
+ import styles from './PreferencesPage.module.css';
+ 
+ export const PreferencesPage = () => {
+   const { preferences, save, clear } = useFeedPreferences();
++  const discoveredAuthors = useDiscoveredAuthors();
+   return (
+     <main id="main-content" className={styles.page}>
+       <div className={`container ${styles.content}`}>
+@@ -16,7 +18,12 @@ export const PreferencesPage = () => {
+             assessment.
+           </p>
+         </header>
+-        <PreferencesForm initial={preferences} onSave={save} onReset={clear} />
++        <PreferencesForm
++          initial={preferences}
++          discoveredAuthors={discoveredAuthors}
++          onSave={save}
++          onReset={clear}
++        />
+       </div>
+     </main>
+   );
+diff --git a/src/client/shared/ui/Drawer/Drawer.module.css b/src/client/shared/ui/Drawer/Drawer.module.css
+index 223ed30..6e2181f 100644
+--- a/src/client/shared/ui/Drawer/Drawer.module.css
++++ b/src/client/shared/ui/Drawer/Drawer.module.css
+@@ -1,3 +1,7 @@
++.scrollLock {
++  overflow: hidden;
++}
++
+ .root {
+   position: fixed;
+   inset: 0;
+diff --git a/src/client/shared/ui/Drawer/Drawer.tsx b/src/client/shared/ui/Drawer/Drawer.tsx
+index 290198e..923ae90 100644
+--- a/src/client/shared/ui/Drawer/Drawer.tsx
++++ b/src/client/shared/ui/Drawer/Drawer.tsx
+@@ -9,6 +9,7 @@ import styles from './Drawer.module.css';
+ import { X } from 'lucide-react';
+ 
+ interface DrawerProps {
++  id?: string;
+   open: boolean;
+   title: string;
+   onClose: () => void;
+@@ -37,6 +38,7 @@ const getFocusableElements = (container: HTMLElement): HTMLElement[] =>
+   );
+ 
+ export const Drawer = ({
++  id,
+   open,
+   title,
+   onClose,
+@@ -90,11 +92,10 @@ export const Drawer = ({
+         : null;
+ 
+     const body = document.body;
+-    const previousOverflow = body.style.overflow;
+-    body.style.overflow = 'hidden';
++    body.classList.add(styles.scrollLock);
+ 
+     return () => {
+-      body.style.overflow = previousOverflow;
++      body.classList.remove(styles.scrollLock);
+       previouslyFocusedRef.current?.focus();
+       previouslyFocusedRef.current = null;
+     };
+@@ -185,6 +186,7 @@ export const Drawer = ({
+       />
+ 
+       <section
++        id={id}
+         ref={dialogRef}
+         className={styles.drawer}
+         role="dialog"
+diff --git a/src/client/shared/ui/Input/Input.module.css b/src/client/shared/ui/Input/Input.module.css
+index 9d2a2ce..5636600 100644
+--- a/src/client/shared/ui/Input/Input.module.css
++++ b/src/client/shared/ui/Input/Input.module.css
+@@ -1,19 +1,55 @@
+ .container {
+-  position: relative;
+   width: 100%;
+ }
+ 
++.inputWrapper {
++  position: relative;
++}
++
+ .input {
+   width: 100%;
+-  padding: 8px;
+-  border-radius: 4px;
++  min-height: 2.75rem;
++  padding: 0.5rem 0.625rem;
+   border: 1px solid var(--color-text-muted);
++  border-radius: var(--radius-sm);
++  background: var(--color-surface);
++  color: var(--color-text);
++}
++
++.input::placeholder {
++  color: var(--color-text-muted);
++  opacity: 1;
++}
++
++.input:focus-visible {
++  border-color: var(--color-accent);
++}
++
++.invalid {
++  border-color: var(--color-danger);
+ }
+ 
+ .label {
+   display: block;
+-  margin-bottom: 4px;
+-  opacity: 0.6;
++  margin-bottom: 0.25rem;
++  color: var(--color-text);
++  font-size: 0.875rem;
++  font-weight: 650;
++}
++
++.hint,
++.error {
++  margin-top: 0.375rem;
++  font-size: 0.8125rem;
++}
++
++.hint {
++  color: var(--color-text-muted);
++}
++
++.error {
++  color: var(--color-danger);
++  font-weight: 650;
+ }
+ 
+ .hasEndAdornment {
+diff --git a/src/client/shared/ui/Input/Input.test.tsx b/src/client/shared/ui/Input/Input.test.tsx
+new file mode 100644
+index 0000000..246c81e
+--- /dev/null
++++ b/src/client/shared/ui/Input/Input.test.tsx
+@@ -0,0 +1,74 @@
++// @vitest-environment jsdom
++import { act } from 'react';
++import { createRoot } from 'react-dom/client';
++import { beforeEach, describe, expect, it } from 'vitest';
++import { Input } from './Input';
++
++beforeEach(() => {
++  (
++    globalThis as typeof globalThis & {
++      IS_REACT_ACT_ENVIRONMENT?: boolean;
++    }
++  ).IS_REACT_ACT_ENVIRONMENT = true;
++});
++
++describe('Input accessibility semantics', () => {
++  it('associates its visible label and validation messages with a stable id', () => {
++    const container = document.createElement('div');
++    const root = createRoot(container);
++
++    act(() => {
++      root.render(
++        <Input
++          label="Email address"
++          aria-describedby="external-description"
++          hint="Use your work email."
++          error="Email is required."
++        />,
++      );
++    });
++
++    const input = container.querySelector('input');
++    const label = container.querySelector('label');
++    const hint = container.querySelector('[id$="-hint"]');
++    const error = container.querySelector('[id$="-error"]');
++
++    expect(input).not.toBeNull();
++    expect(label?.htmlFor).toBe(input?.id);
++    expect(input?.getAttribute('aria-invalid')).toBe('true');
++    expect(input?.getAttribute('aria-describedby')?.split(' ')).toEqual([
++      'external-description',
++      hint?.id,
++      error?.id,
++    ]);
++    expect(error?.getAttribute('role')).toBe('alert');
++
++    const initialId = input?.id;
++
++    act(() => {
++      root.render(<Input label="Email address" hint="Use your work email." />);
++    });
++
++    expect(container.querySelector('input')?.id).toBe(initialId);
++    expect(
++      container.querySelector('input')?.hasAttribute('aria-invalid'),
++    ).toBe(false);
++
++    act(() => root.unmount());
++  });
++
++  it('preserves explicit aria-invalid values', () => {
++    const container = document.createElement('div');
++    const root = createRoot(container);
++
++    act(() => {
++      root.render(<Input label="Sentence" aria-invalid="grammar" />);
++    });
++
++    expect(container.querySelector('input')?.getAttribute('aria-invalid')).toBe(
++      'grammar',
++    );
++
++    act(() => root.unmount());
++  });
++});
+diff --git a/src/client/shared/ui/Input/Input.tsx b/src/client/shared/ui/Input/Input.tsx
+index 3976ee2..f4cb791 100644
+--- a/src/client/shared/ui/Input/Input.tsx
++++ b/src/client/shared/ui/Input/Input.tsx
+@@ -1,38 +1,94 @@
+-import { forwardRef, type InputHTMLAttributes, type ReactNode } from 'react';
++import {
++  forwardRef,
++  useId,
++  type InputHTMLAttributes,
++  type ReactNode,
++} from 'react';
+ import styles from './Input.module.css';
+ 
+ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+   endAdornment?: ReactNode;
++  error?: ReactNode;
++  hint?: ReactNode;
+   label?: string;
+ }
+ 
++const joinIds = (...ids: Array<string | undefined>): string | undefined => {
++  const value = ids.filter(Boolean).join(' ');
++  return value || undefined;
++};
++
++const isAriaInvalid = (
++  value: InputHTMLAttributes<HTMLInputElement>['aria-invalid'],
++): boolean => value !== undefined && value !== false && value !== 'false';
++
+ export const Input = forwardRef<HTMLInputElement, InputProps>(
+-  ({ endAdornment, label, className = '', ...inputProps }, ref) => (
+-    <div className={styles.container}>
+-      {label && (
+-        <label className={styles.label} htmlFor={inputProps.id}>
+-          {label}
+-        </label>
+-      )}
+-      <input
+-        ref={ref}
+-        className={[
+-          styles.input,
+-          endAdornment ? styles.hasEndAdornment : '',
+-          className,
+-        ]
+-          .filter(Boolean)
+-          .join(' ')}
+-        {...inputProps}
+-      />
+-
+-      {endAdornment ? (
+-        <span className={styles.endAdornment} aria-hidden="true">
+-          {endAdornment}
+-        </span>
+-      ) : null}
+-    </div>
+-  ),
++  (
++    {
++      'aria-describedby': describedBy,
++      'aria-invalid': ariaInvalid,
++      className = '',
++      endAdornment,
++      error,
++      hint,
++      id,
++      label,
++      ...inputProps
++    },
++    ref,
++  ) => {
++    const reactId = useId().replaceAll(':', '');
++    const inputId = id ?? `input-${reactId}`;
++    const hintId = hint ? `${inputId}-hint` : undefined;
++    const errorId = error ? `${inputId}-error` : undefined;
++    const invalid = Boolean(error) || isAriaInvalid(ariaInvalid);
++
++    return (
++      <div className={styles.container}>
++        {label ? (
++          <label className={styles.label} htmlFor={inputId}>
++            {label}
++          </label>
++        ) : null}
++
++        <div className={styles.inputWrapper}>
++          <input
++            ref={ref}
++            {...inputProps}
++            id={inputId}
++            aria-describedby={joinIds(describedBy, hintId, errorId)}
++            aria-invalid={error ? true : ariaInvalid}
++            className={[
++              styles.input,
++              invalid ? styles.invalid : '',
++              endAdornment ? styles.hasEndAdornment : '',
++              className,
++            ]
++              .filter(Boolean)
++              .join(' ')}
++          />
++
++          {endAdornment ? (
++            <span className={styles.endAdornment} aria-hidden="true">
++              {endAdornment}
++            </span>
++          ) : null}
++        </div>
++
++        {hint ? (
++          <p className={styles.hint} id={hintId}>
++            {hint}
++          </p>
++        ) : null}
++
++        {error ? (
++          <p className={styles.error} id={errorId} role="alert">
++            {error}
++          </p>
++        ) : null}
++      </div>
++    );
++  },
+ );
+ 
+ Input.displayName = 'Input';
+diff --git a/src/client/shared/ui/PageLoadingSkeleton/PageLoadingSkeleton.tsx b/src/client/shared/ui/PageLoadingSkeleton/PageLoadingSkeleton.tsx
+index afaaaac..068cf1e 100644
+--- a/src/client/shared/ui/PageLoadingSkeleton/PageLoadingSkeleton.tsx
++++ b/src/client/shared/ui/PageLoadingSkeleton/PageLoadingSkeleton.tsx
+@@ -20,7 +20,12 @@ const SkeletonCard = () => (
+ );
+ 
+ export const PageLoadingSkeleton = () => (
+-  <main className={styles.page} aria-busy="true" aria-label="Loading page">
++  <main
++    id="main-content"
++    className={styles.page}
++    aria-busy="true"
++    aria-label="Loading page"
++  >
+     <span className={styles.visuallyHidden}>Loading page…</span>
+ 
+     <header className={styles.header}>
+diff --git a/src/client/shared/ui/Skeleton/Skeleton.module.css b/src/client/shared/ui/Skeleton/Skeleton.module.css
+index 9b748d3..2f46c6c 100644
+--- a/src/client/shared/ui/Skeleton/Skeleton.module.css
++++ b/src/client/shared/ui/Skeleton/Skeleton.module.css
+@@ -4,6 +4,39 @@
+   animation: shimmer 1.4s ease infinite;
+   border-radius: 8px;
+ }
++
++.height20 {
++  height: 20px;
++}
++
++.height24 {
++  height: 24px;
++}
++
++.height32 {
++  height: 32px;
++}
++
++.height170 {
++  height: 170px;
++}
++
++.width42 {
++  width: 42%;
++}
++
++.width75 {
++  width: 75%;
++}
++
++.width88 {
++  width: 88%;
++}
++
++.width100 {
++  width: 100%;
++}
++
+ @keyframes shimmer {
+   0% {
+     background-position: 100% 0;
+@@ -12,6 +45,7 @@
+     background-position: 0 0;
+   }
+ }
++
+ @media (prefers-reduced-motion: reduce) {
+   .skeleton {
+     animation: none;
+diff --git a/src/client/shared/ui/Skeleton/Skeleton.tsx b/src/client/shared/ui/Skeleton/Skeleton.tsx
+index 0f681ad..46c6d01 100644
+--- a/src/client/shared/ui/Skeleton/Skeleton.tsx
++++ b/src/client/shared/ui/Skeleton/Skeleton.tsx
+@@ -1,15 +1,31 @@
+ import styles from './Skeleton.module.css';
+ 
++type SkeletonHeight = 20 | 24 | 32 | 170;
++type SkeletonWidth = '42%' | '75%' | '88%' | '100%';
++
++const heightClass: Record<SkeletonHeight, string> = {
++  20: styles.height20,
++  24: styles.height24,
++  32: styles.height32,
++  170: styles.height170,
++};
++
++const widthClass: Record<SkeletonWidth, string> = {
++  '42%': styles.width42,
++  '75%': styles.width75,
++  '88%': styles.width88,
++  '100%': styles.width100,
++};
++
+ export const Skeleton = ({
+   height,
+   width = '100%',
+ }: {
+-  height: number;
+-  width?: string;
++  height: SkeletonHeight;
++  width?: SkeletonWidth;
+ }) => (
+   <div
+-    className={styles.skeleton}
++    className={`${styles.skeleton} ${heightClass[height]} ${widthClass[width]}`}
+     aria-hidden="true"
+-    style={{ height, width }}
+   />
+ );
+diff --git a/src/client/widgets/app-header/AppHeader.tsx b/src/client/widgets/app-header/AppHeader.tsx
+index d718962..20b14cb 100644
+--- a/src/client/widgets/app-header/AppHeader.tsx
++++ b/src/client/widgets/app-header/AppHeader.tsx
+@@ -31,7 +31,7 @@ export const AppHeader = ({
+           aria-label="Open filters"
+           aria-haspopup="dialog"
+           aria-expanded={filtersOpen}
+-          aria-controls="mobile-filter-drawer"
++          aria-controls={filtersOpen ? 'mobile-filter-drawer' : undefined}
+           className={styles.filterButton}
+           onClick={onOpenFilters}
+         >
+diff --git a/src/client/widgets/article-feed/ArticleFeed.module.css b/src/client/widgets/article-feed/ArticleFeed.module.css
+index 5093b3c..c49be21 100644
+--- a/src/client/widgets/article-feed/ArticleFeed.module.css
++++ b/src/client/widgets/article-feed/ArticleFeed.module.css
+@@ -21,34 +21,6 @@
+   gap: 12px;
+ }
+ 
+-@media (min-width: 900px) {
+-  .feedContainer {
+-    max-height: calc(100vh - 180px);
+-    overflow-y: auto;
+-    overscroll-behavior: contain;
+-
+-    /*
+-     * Stable scrollbar prevents horizontal layout shifts when the
+-     * feed changes between short and long result sets.
+-     */
+-    scrollbar-gutter: stable;
+-  }
+-}
+-
+-@media (max-width: 899px) {
+-  /*
+-   * This implementation needs a dedicated scroll container on all
+-   * viewport sizes. Without overflow and a bounded height, the
+-   * virtualizer cannot determine a useful viewport.
+-   */
+-  .feedContainer {
+-    height: calc(100dvh - 160px);
+-    min-height: 400px;
+-    overflow-y: auto;
+-    overscroll-behavior: contain;
+-  }
+-}
+-
+ @media (max-width: 700px) {
+   .skeletonCard {
+     grid-template-columns: 1fr;
+diff --git a/src/client/widgets/article-feed/ArticleFeed.tsx b/src/client/widgets/article-feed/ArticleFeed.tsx
+index c1b9299..0daccb8 100644
+--- a/src/client/widgets/article-feed/ArticleFeed.tsx
++++ b/src/client/widgets/article-feed/ArticleFeed.tsx
+@@ -6,10 +6,18 @@ interface ArticleFeedProps {
+   articles: Article[];
+ }
+ 
+-export const ArticleFeed = ({ articles }: ArticleFeedProps) => (
+-  <section className={styles.feed} aria-label="News articles">
+-    {articles.map((article) => (
+-      <ArticleCard key={article.id} article={article} />
+-    ))}
+-  </section>
+-);
++export const ArticleFeed = ({ articles }: ArticleFeedProps) => {
++  const priorityImageIndex = articles.findIndex((article) => article.imageUrl);
++
++  return (
++    <section className={styles.feed} aria-label="News articles">
++      {articles.map((article, index) => (
++        <ArticleCard
++          key={article.id}
++          article={article}
++          isAboveTheFold={index === priorityImageIndex}
++        />
++      ))}
++    </section>
++  );
++};
+diff --git a/src/client/widgets/filters-panel/FiltersPanel.module.css b/src/client/widgets/filters-panel/FiltersPanel.module.css
+index 3d07356..94d7dd1 100644
+--- a/src/client/widgets/filters-panel/FiltersPanel.module.css
++++ b/src/client/widgets/filters-panel/FiltersPanel.module.css
+@@ -30,6 +30,7 @@
+ }
+ .actions {
+   display: flex;
++  flex-direction: column;
+   gap: 8px;
+   padding-top: 4px;
+ }
+@@ -63,3 +64,9 @@
+     bottom: 8px;
+   }
+ }
++
++.applyHelp {
++  color: var(--color-danger);
++  font-size: 0.8125rem;
++  font-weight: 650;
++}
+diff --git a/src/client/widgets/filters-panel/FiltersPanel.tsx b/src/client/widgets/filters-panel/FiltersPanel.tsx
+index 0e579ac..e94311e 100644
+--- a/src/client/widgets/filters-panel/FiltersPanel.tsx
++++ b/src/client/widgets/filters-panel/FiltersPanel.tsx
+@@ -1,12 +1,14 @@
++import { useId } from 'react';
+ import type { ArticleFilters } from '@contracts/index';
+ import { Button } from '@client/shared/ui/Button';
+ import {
+   CategoryFilter,
+   DateFilter,
+   SourceFilter,
++  getDateRangeError,
+ } from '@client/features/filter-articles';
+-import styles from './FiltersPanel.module.css';
+ import { ArticleSearchInput } from '@client/features/search-articles';
++import styles from './FiltersPanel.module.css';
+ 
+ export interface FiltersPanelProps {
+   filters: ArticleFilters;
+@@ -20,41 +22,63 @@ export const FiltersPanel = ({
+   onChange,
+   onReset,
+   onApply,
+-}: FiltersPanelProps) => (
+-  <div className={styles.panel}>
+-    <div className={styles.header}>
+-      <h2 className={styles.title}>Filters</h2>
+-      <Button type="button" variant="ghost" size="small" onClick={onReset}>
+-        Reset
+-      </Button>
+-    </div>
+-    <ArticleSearchInput
+-      query={filters.query}
+-      onChange={(query) => {
+-        onChange({
+-          ...filters,
+-          query,
+-        });
+-      }}
+-    />
+-    <section className={styles.section}>
+-      <h3 className={styles.sectionTitle}>Date range</h3>
+-      <DateFilter filters={filters} onChange={onChange} />
+-    </section>
+-    <section className={styles.section}>
+-      <h3 className={styles.sectionTitle}>Sources</h3>
+-      <SourceFilter filters={filters} onChange={onChange} />
+-    </section>
+-    <section className={styles.section}>
+-      <h3 className={styles.sectionTitle}>Categories</h3>
+-      <CategoryFilter filters={filters} onChange={onChange} />
+-    </section>
+-    {onApply ? (
+-      <div className={styles.actions}>
+-        <Button type="button" fullWidth onClick={onApply}>
+-          Apply filters
++}: FiltersPanelProps) => {
++  const reactId = useId().replaceAll(':', '');
++  const applyHelpId = `date-range-apply-help-${reactId}`;
++  const dateRangeError = getDateRangeError(filters);
++
++  return (
++    <div className={styles.panel}>
++      <div className={styles.header}>
++        <h2 className={styles.title}>Filters</h2>
++        <Button type="button" variant="ghost" size="small" onClick={onReset}>
++          Reset
+         </Button>
+       </div>
+-    ) : null}
+-  </div>
+-);
++
++      <ArticleSearchInput
++        query={filters.query}
++        onChange={(query) => {
++          onChange({
++            ...filters,
++            query,
++          });
++        }}
++      />
++
++      <section className={styles.section}>
++        <h3 className={styles.sectionTitle}>Date range</h3>
++        <DateFilter filters={filters} onChange={onChange} />
++      </section>
++
++      <section className={styles.section}>
++        <h3 className={styles.sectionTitle}>Sources</h3>
++        <SourceFilter filters={filters} onChange={onChange} />
++      </section>
++
++      <section className={styles.section}>
++        <h3 className={styles.sectionTitle}>Categories</h3>
++        <CategoryFilter filters={filters} onChange={onChange} />
++      </section>
++
++      {onApply ? (
++        <div className={styles.actions}>
++          <Button
++            type="button"
++            fullWidth
++            disabled={Boolean(dateRangeError)}
++            aria-describedby={dateRangeError ? applyHelpId : undefined}
++            onClick={onApply}
++          >
++            Apply filters
++          </Button>
++          {dateRangeError ? (
++            <span className={styles.applyHelp} id={applyHelpId}>
++              Correct the date range before applying filters.
++            </span>
++          ) : null}
++        </div>
++      ) : null}
++    </div>
++  );
++};
+diff --git a/src/client/widgets/filters-panel/MobileFilterDrawer.tsx b/src/client/widgets/filters-panel/MobileFilterDrawer.tsx
+index e0be33e..9015b7d 100644
+--- a/src/client/widgets/filters-panel/MobileFilterDrawer.tsx
++++ b/src/client/widgets/filters-panel/MobileFilterDrawer.tsx
+@@ -21,7 +21,12 @@ export const MobileFilterDrawer = ({
+ }: MobileFilterDrawerProps) => {
+   return (
+     <>
+-      <Drawer open={open} title="Filter articles" onClose={onClose}>
++      <Drawer
++        id="mobile-filter-drawer"
++        open={open}
++        title="Filter articles"
++        onClose={onClose}
++      >
+         <FiltersPanel
+           filters={filters}
+           onChange={onChange}
+diff --git a/src/client/widgets/preferences-form/AuthorPreferences.module.css b/src/client/widgets/preferences-form/AuthorPreferences.module.css
+index f8ff606..2ec9b9f 100644
+--- a/src/client/widgets/preferences-form/AuthorPreferences.module.css
++++ b/src/client/widgets/preferences-form/AuthorPreferences.module.css
+@@ -10,18 +10,14 @@
+   gap: 0.625rem;
+ }
+ 
+-.addButton {
+-  display: flex;
+-  place-items: center;
+-  gap: 4px;
+-  white-space: nowrap;
+-  width: fit-content;
+-  height: 2.75rem;
++.addButton,
++.suggestionButton {
++  display: inline-flex;
++  align-items: center;
++  justify-content: center;
++  gap: 0.375rem;
+   border: 1px solid var(--color-border);
+   border-radius: var(--radius-md);
+-  background: var(--color-primary);
+-  color: var(--color-on-primary);
+-
+   cursor: pointer;
+   transition:
+     background-color 150ms ease,
+@@ -29,18 +25,23 @@
+     transform 150ms ease;
+ }
+ 
+-.addButton:hover:not(:disabled) {
+-  transform: translateY(-1px);
+-  cursor: pointer;
++.addButton {
++  width: fit-content;
++  height: 2.75rem;
++  padding-inline: 0.875rem;
++  background: var(--color-brand);
++  color: var(--color-on-brand);
++  white-space: nowrap;
+ }
+ 
+-.addButton:active:not(:disabled) {
+-  transform: translateY(0);
++.addButton:hover:not(:disabled),
++.suggestionButton:hover {
++  transform: translateY(-1px);
+ }
+ 
+-.addButton:focus-visible {
+-  outline: 3px solid var(--color-focus);
+-  outline-offset: 2px;
++.addButton:active:not(:disabled),
++.suggestionButton:active {
++  transform: translateY(0);
+ }
+ 
+ .addButton:disabled {
+@@ -48,64 +49,96 @@
+   opacity: 0.45;
+ }
+ 
+-.addButton svg {
+-  width: 1.125rem;
+-  height: 1.125rem;
++.addButton svg,
++.suggestionButton svg {
++  width: 1rem;
++  height: 1rem;
+   stroke-width: 2;
+ }
+ 
++.suggestions {
++  display: grid;
++  gap: 0.5rem;
++}
++
++.suggestionLabel,
++.discoveryMessage,
++.emptyMessage {
++  margin: 0;
++  color: var(--color-text-muted);
++  font-size: 0.875rem;
++}
++
++.suggestionLabel {
++  font-weight: 650;
++}
++
++.suggestionList,
+ .chipList {
+   display: flex;
+   flex-wrap: wrap;
+   gap: 0.5rem;
+-
+   margin: 0;
+   padding: 0;
+-
+   list-style: none;
+ }
+ 
++.suggestionButton {
++  min-height: 2rem;
++  padding: 0.25rem 0.625rem;
++  background: var(--color-surface);
++  color: var(--color-text);
++  font-size: 0.875rem;
++}
++
+ .chip {
+   display: inline-flex;
+   align-items: center;
+-  gap: 0.375rem;
+-
++  gap: 0.5rem;
+   min-height: 2rem;
+-  padding: 0.25rem 0.375rem 0.25rem 0.75rem;
+-
++  padding: 0.375rem 0.375rem 0.375rem 0.75rem;
+   border: 1px solid var(--color-border);
+-  border-radius: 999px;
+-  background: var(--color-surface-secondary);
+-  color: var(--color-text-primary);
+-
++  border-radius: var(--radius-md);
++  background: var(--color-surface-muted);
++  color: var(--color-text);
+   font-size: 0.875rem;
+-  line-height: 1.25;
++}
++
++.chipContent {
++  display: grid;
++  gap: 0.125rem;
++}
++
++.unavailable,
++.manual {
++  font-size: 0.75rem;
++  font-weight: 650;
++}
++
++.unavailable {
++  color: var(--color-danger);
++}
++
++.manual {
++  color: var(--color-text-muted);
+ }
+ 
+ .removeButton {
+   display: inline-grid;
+   place-items: center;
+-
+-  width: 1.5rem;
+-  height: 1.5rem;
++  width: 1.75rem;
++  height: 1.75rem;
+   padding: 0;
+-
+   border: 0;
+   border-radius: 999px;
+   background: transparent;
+   color: var(--color-text-muted);
+-
+   cursor: pointer;
+ }
+ 
+ .removeButton:hover {
+   background: var(--color-surface-hover);
+-  color: var(--color-text-primary);
+-}
+-
+-.removeButton:focus-visible {
+-  outline: 2px solid var(--color-focus);
+-  outline-offset: 1px;
++  color: var(--color-text);
+ }
+ 
+ .removeButton svg {
+@@ -113,16 +146,12 @@
+   height: 0.875rem;
+ }
+ 
+-.emptyMessage {
+-  margin: 0;
+-  color: var(--color-text-muted);
+-  font-size: 0.875rem;
+-}
+-
+ @media (max-width: 480px) {
+   .inputRow {
+-    grid-template-columns: minmax(0, 1fr) 2.75rem;
+-    display: flex;
+-    flex-direction: column;
++    grid-template-columns: 1fr;
++  }
++
++  .addButton {
++    width: 100%;
+   }
+ }
+diff --git a/src/client/widgets/preferences-form/AuthorPreferences.tsx b/src/client/widgets/preferences-form/AuthorPreferences.tsx
+index 0524a23..57bb8e6 100644
+--- a/src/client/widgets/preferences-form/AuthorPreferences.tsx
++++ b/src/client/widgets/preferences-form/AuthorPreferences.tsx
+@@ -1,10 +1,12 @@
+-import { useCallback, useState, type KeyboardEvent } from 'react';
++import { useCallback, useMemo, useState, type KeyboardEvent } from 'react';
+ import { Plus, X } from 'lucide-react';
+ import type { FeedPreferences } from '@client/entities/feed-preferences';
++import type { DiscoveredAuthor } from '@client/entities/feed';
+ import { Input } from '@client/shared/ui/Input';
+ import styles from './AuthorPreferences.module.css';
+ 
+ interface AuthorPreferencesProps {
++  discoveredAuthors: DiscoveredAuthor[];
+   value: FeedPreferences;
+   onChange: (next: FeedPreferences) => void;
+ }
+@@ -12,42 +14,59 @@ interface AuthorPreferencesProps {
+ const normalizeAuthor = (author: string): string =>
+   author.trim().replace(/\s+/g, ' ');
+ 
++const authorKey = (author: string): string =>
++  normalizeAuthor(author).toLocaleLowerCase('en-US');
++
+ export const AuthorPreferences = ({
++  discoveredAuthors,
+   value,
+   onChange,
+ }: AuthorPreferencesProps) => {
+   const [authorInput, setAuthorInput] = useState('');
++  const discoveredByName = useMemo(
++    () =>
++      new Map(
++        discoveredAuthors.map((author) => [authorKey(author.name), author]),
++      ),
++    [discoveredAuthors],
++  );
+ 
+-  const addAuthor = useCallback(() => {
+-    const author = normalizeAuthor(authorInput);
++  const isAvailableForSelectedSources = useCallback(
++    (author: DiscoveredAuthor): boolean =>
++      value.sourceIds.length === 0 ||
++      author.sourceIds.some((sourceId) => value.sourceIds.includes(sourceId)),
++    [value.sourceIds],
++  );
+ 
+-    if (!author) {
+-      return;
+-    }
++  const addAuthorValue = useCallback(
++    (rawAuthor: string) => {
++      const author = normalizeAuthor(rawAuthor);
+ 
+-    const alreadyExists = value.authors.some(
+-      (existingAuthor) =>
+-        existingAuthor.toLocaleLowerCase() === author.toLocaleLowerCase(),
+-    );
++      if (!author) return;
+ 
+-    if (alreadyExists) {
+-      setAuthorInput('');
+-      return;
+-    }
++      const alreadyExists = value.authors.some(
++        (existingAuthor) => authorKey(existingAuthor) === authorKey(author),
++      );
+ 
+-    onChange({
+-      ...value,
+-      authors: [...value.authors, author],
+-    });
++      if (!alreadyExists) {
++        onChange({
++          ...value,
++          authors: [...value.authors, author],
++        });
++      }
+ 
+-    setAuthorInput('');
+-  }, [authorInput, onChange, value]);
++      setAuthorInput('');
++    },
++    [onChange, value],
++  );
+ 
+   const removeAuthor = useCallback(
+     (authorToRemove: string) => {
+       onChange({
+         ...value,
+-        authors: value.authors.filter((author) => author !== authorToRemove),
++        authors: value.authors.filter(
++          (author) => authorKey(author) !== authorKey(authorToRemove),
++        ),
+       });
+     },
+     [onChange, value],
+@@ -56,16 +75,26 @@ export const AuthorPreferences = ({
+   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+     if (event.key === 'Enter') {
+       event.preventDefault();
+-      addAuthor();
++      addAuthorValue(authorInput);
+     }
+   };
+ 
++  const suggestions = discoveredAuthors.filter(
++    (author) =>
++      isAvailableForSelectedSources(author) &&
++      !value.authors.some(
++        (selectedAuthor) => authorKey(selectedAuthor) === authorKey(author.name),
++      ),
++  );
++
+   return (
+     <div className={styles.container}>
+       <div className={styles.inputRow}>
+         <Input
+           label="Preferred authors"
++          hint="Choose an author found in loaded articles or add a canonical full name manually."
+           placeholder="e.g. Maya Chen"
++          maxLength={100}
+           value={authorInput}
+           onChange={(event) => {
+             setAuthorInput(event.target.value);
+@@ -78,31 +107,75 @@ export const AuthorPreferences = ({
+           className={styles.addButton}
+           aria-label="Add preferred author"
+           disabled={!authorInput.trim()}
+-          onClick={addAuthor}
++          onClick={() => addAuthorValue(authorInput)}
+         >
+           <span>Add author</span>
+           <Plus aria-hidden="true" />
+         </button>
+       </div>
+ 
++      {suggestions.length > 0 ? (
++        <div className={styles.suggestions}>
++          <p className={styles.suggestionLabel}>
++            Authors found in loaded articles
++          </p>
++          <ul className={styles.suggestionList}>
++            {suggestions.map((author) => (
++              <li key={authorKey(author.name)}>
++                <button
++                  type="button"
++                  className={styles.suggestionButton}
++                  onClick={() => addAuthorValue(author.name)}
++                >
++                  <Plus aria-hidden="true" />
++                  {author.name}
++                </button>
++              </li>
++            ))}
++          </ul>
++        </div>
++      ) : (
++        <p className={styles.discoveryMessage}>
++          No additional authors are available from the loaded articles and
++          selected providers.
++        </p>
++      )}
++
+       {value.authors.length > 0 ? (
+         <ul className={styles.chipList} aria-label="Preferred authors">
+-          {value.authors.map((author) => (
+-            <li key={author} className={styles.chip}>
+-              <span>{author}</span>
+-
+-              <button
+-                type="button"
+-                className={styles.removeButton}
+-                aria-label={`Remove ${author}`}
+-                onClick={() => {
+-                  removeAuthor(author);
+-                }}
+-              >
+-                <X aria-hidden="true" />
+-              </button>
+-            </li>
+-          ))}
++          {value.authors.map((author) => {
++            const discovered = discoveredByName.get(authorKey(author));
++            const unavailable =
++              discovered !== undefined &&
++              !isAvailableForSelectedSources(discovered);
++
++            return (
++              <li key={authorKey(author)} className={styles.chip}>
++                <span className={styles.chipContent}>
++                  <span>{author}</span>
++                  {unavailable ? (
++                    <span className={styles.unavailable}>
++                      Unavailable in selected providers
++                    </span>
++                  ) : null}
++                  {!discovered ? (
++                    <span className={styles.manual}>
++                      Manual entry — not found in loaded articles
++                    </span>
++                  ) : null}
++                </span>
++
++                <button
++                  type="button"
++                  className={styles.removeButton}
++                  aria-label={`Remove ${author}`}
++                  onClick={() => removeAuthor(author)}
++                >
++                  <X aria-hidden="true" />
++                </button>
++              </li>
++            );
++          })}
+         </ul>
+       ) : (
+         <p className={styles.emptyMessage}>No preferred authors added.</p>
+diff --git a/src/client/widgets/preferences-form/PreferencesForm.tsx b/src/client/widgets/preferences-form/PreferencesForm.tsx
+index 154aa3c..525abd6 100644
+--- a/src/client/widgets/preferences-form/PreferencesForm.tsx
++++ b/src/client/widgets/preferences-form/PreferencesForm.tsx
+@@ -1,5 +1,6 @@
+ import { useState, type FormEvent } from 'react';
+ import type { FeedPreferences } from '@client/entities/feed-preferences';
++import type { DiscoveredAuthor } from '@client/entities/feed';
+ import {
+   usePreferencesForm,
+   validatePreferences,
+@@ -14,10 +15,12 @@ export const PreferencesForm = ({
+   initial,
+   onSave,
+   onReset,
++  discoveredAuthors,
+ }: {
+   initial: FeedPreferences;
+   onSave: (preferences: FeedPreferences) => void;
+   onReset: () => void;
++  discoveredAuthors: DiscoveredAuthor[];
+ }) => {
+   const form = usePreferencesForm(initial);
+   const [validationError, setValidationError] = useState<string | null>(null);
+@@ -57,7 +60,11 @@ export const PreferencesForm = ({
+       </section>
+       <section className={styles.section}>
+         <h2 className={styles.title}>Preferred authors</h2>
+-        <AuthorPreferences value={form.draft} onChange={form.setDraft} />
++        <AuthorPreferences
++          discoveredAuthors={discoveredAuthors}
++          value={form.draft}
++          onChange={form.setDraft}
++        />
+       </section>
+       <div className={styles.actions}>
+         <Button
+diff --git a/src/contracts/article.contract.ts b/src/contracts/article.contract.ts
+index 67299e2..740378f 100644
+--- a/src/contracts/article.contract.ts
++++ b/src/contracts/article.contract.ts
+@@ -20,7 +20,7 @@ export const articleSchema = z.object({
+   title: z.string().trim().min(1),
+   description: z.string().trim().optional(),
+   imageUrl: z.string().url().optional(),
+-  author: z.string().trim().optional(),
++  authors: z.array(z.string().trim().min(1).max(100)),
+   publishedAt: isoDateTimeSchema,
+   keywords: z.array(z.string()).optional(),
+   categories: z.array(categorySchema),
+diff --git a/src/server/app/create-server.test.ts b/src/server/app/create-server.test.ts
+index 31e4316..84035d1 100644
+--- a/src/server/app/create-server.test.ts
++++ b/src/server/app/create-server.test.ts
+@@ -9,6 +9,19 @@ describe('server routes', () => {
+     expect(response.body).toMatchObject({ status: 'ok' });
+   });
+ 
++  it('serves strict security headers with no inline-style allowance', async () => {
++    const response = await request(createServer()).get('/api/health');
++    const csp = response.headers['content-security-policy'];
++
++    expect(response.status).toBe(200);
++    expect(csp).toContain("default-src 'self'");
++    expect(csp).toContain("style-src 'self'");
++    expect(csp).toContain("style-src-attr 'none'");
++    expect(csp).not.toContain("'unsafe-inline'");
++    expect(response.headers['x-content-type-options']).toBe('nosniff');
++    expect(response.headers['referrer-policy']).toBeDefined();
++  });
++
+   it('rejects an invalid date range before calling providers', async () => {
+     const response = await request(createServer()).get(
+       '/api/feed?dateFrom=2026-02-01&dateTo=2026-01-01',
+diff --git a/src/server/app/create-server.ts b/src/server/app/create-server.ts
+index 369d9ec..14b67c0 100644
+--- a/src/server/app/create-server.ts
++++ b/src/server/app/create-server.ts
+@@ -6,7 +6,7 @@ import { errorHandler } from './middleware/error-handler';
+ import { notFound } from './middleware/not-found';
+ import { requestId } from './middleware/request-id';
+ import { requestLogger } from './middleware/request-logger';
+-import { securityHeaders } from './middleware/security-headers';
++import { createSecurityHeaders } from './middleware/security-headers';
+ import { registerRoutes } from './register-routes';
+ import { serveClient } from './serve-client';
+ import { FeedService } from '../modules/feed/feed.service';
+@@ -17,7 +17,9 @@ export const createServer = () => {
+   app.set('trust proxy', 1);
+   app.use(requestId);
+   app.use(requestLogger);
+-  app.use(securityHeaders);
++  app.use(
++    createSecurityHeaders(serverEnv.SENTRY_DSN ?? serverEnv.VITE_SENTRY_DSN),
++  );
+   app.use(compression());
+   app.use(express.json({ limit: '32kb' }));
+ 
+diff --git a/src/server/app/middleware/security-headers.test.ts b/src/server/app/middleware/security-headers.test.ts
+new file mode 100644
+index 0000000..0e49d63
+--- /dev/null
++++ b/src/server/app/middleware/security-headers.test.ts
+@@ -0,0 +1,32 @@
++import { describe, expect, it } from 'vitest';
++import { buildContentSecurityPolicyDirectives } from './security-headers';
++
++describe('content security policy', () => {
++  it('does not allow inline scripts or styles', () => {
++    const directives = buildContentSecurityPolicyDirectives();
++
++    expect(directives?.scriptSrc).toEqual(["'self'"]);
++    expect(directives?.styleSrc).toEqual(["'self'"]);
++    expect(directives?.scriptSrcAttr).toEqual(["'none'"]);
++    expect(directives?.styleSrcAttr).toEqual(["'none'"]);
++  });
++
++  it('ignores non-HTTP DSN schemes', () => {
++    const directives = buildContentSecurityPolicyDirectives(
++      'javascript:alert(1)',
++    );
++
++    expect(directives.connectSrc).toEqual(["'self'"]);
++  });
++
++  it('allowlists only the configured Sentry ingest origin', () => {
++    const directives = buildContentSecurityPolicyDirectives(
++      'https://public@example.ingest.sentry.io/42',
++    );
++
++    expect(directives?.connectSrc).toEqual([
++      "'self'",
++      'https://example.ingest.sentry.io',
++    ]);
++  });
++});
+diff --git a/src/server/app/middleware/security-headers.ts b/src/server/app/middleware/security-headers.ts
+index 24e6785..ef99cbf 100644
+--- a/src/server/app/middleware/security-headers.ts
++++ b/src/server/app/middleware/security-headers.ts
+@@ -1,17 +1,38 @@
+ import helmet from 'helmet';
+ 
+-export const securityHeaders = helmet({
+-  contentSecurityPolicy: {
+-    directives: {
+-      defaultSrc: ["'self'"],
+-      imgSrc: ["'self'", 'https:', 'data:'],
+-      styleSrc: ["'self'", "'unsafe-inline'"],
+-      scriptSrc: ["'self'"],
+-      connectSrc: ["'self'"],
+-      objectSrc: ["'none'"],
+-      baseUri: ["'self'"],
+-      frameAncestors: ["'none'"],
+-    },
+-  },
+-  crossOriginResourcePolicy: { policy: 'cross-origin' },
++const getAllowedOrigin = (value?: string): string[] => {
++  if (!value) return [];
++
++  try {
++    const url = new URL(value);
++    return url.protocol === 'http:' || url.protocol === 'https:'
++      ? [url.origin]
++      : [];
++  } catch {
++    return [];
++  }
++};
++
++export const buildContentSecurityPolicyDirectives = (sentryDsn?: string) => ({
++  defaultSrc: ["'self'"],
++  baseUri: ["'self'"],
++  connectSrc: ["'self'", ...getAllowedOrigin(sentryDsn)],
++  fontSrc: ["'self'"],
++  formAction: ["'self'"],
++  frameAncestors: ["'none'"],
++  imgSrc: ["'self'", 'https:', 'data:'],
++  manifestSrc: ["'self'"],
++  objectSrc: ["'none'"],
++  scriptSrc: ["'self'"],
++  scriptSrcAttr: ["'none'"],
++  styleSrc: ["'self'"],
++  styleSrcAttr: ["'none'"],
+ });
++
++export const createSecurityHeaders = (sentryDsn?: string) =>
++  helmet({
++    contentSecurityPolicy: {
++      directives: buildContentSecurityPolicyDirectives(sentryDsn),
++    },
++    crossOriginResourcePolicy: { policy: 'cross-origin' },
++  });
+diff --git a/src/server/modules/feed/__tests__/feed.service.test.ts b/src/server/modules/feed/__tests__/feed.service.test.ts
+index 0a770ef..2933e89 100644
+--- a/src/server/modules/feed/__tests__/feed.service.test.ts
++++ b/src/server/modules/feed/__tests__/feed.service.test.ts
+@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
+ import type { Article, ArticleFilters, ProviderId } from '@contracts/index';
+ import type { NewsProvider } from '@server/providers/news-provider';
+ import { FeedService } from '../feed.service';
++import { ProviderError } from '@server/providers/provider-errors';
++import { z } from 'zod';
+ 
+ vi.mock('@server/shared/logging/logger', () => ({
+   logger: {
+@@ -31,7 +33,7 @@ const createArticle = (
+     id: providerId,
+     name: providerId,
+   },
+-  ...(author === undefined ? {} : { author }),
++  authors: author === undefined ? [] : [author],
+ });
+ 
+ const createProvider = (
+@@ -115,6 +117,37 @@ describe('FeedService', () => {
+     expect(Number.isNaN(Date.parse(result.generatedAt))).toBe(false);
+   });
+ 
++  it('classifies malformed provider payloads as invalid_response', async () => {
++    const schemaError = z.string().datetime().safeParse('not-a-date');
++    if (schemaError.success) throw new Error('Expected fixture to be invalid.');
++
++    const providers = new Map<ProviderId, NewsProvider>([
++      [
++        'guardian',
++        createProvider(
++          'guardian',
++          createRejectedFetch(
++            new ProviderError('guardian', 'Invalid payload', {
++              cause: schemaError.error,
++            }),
++          ),
++        ),
++      ],
++    ]);
++
++    const service = new FeedService(providers, 1_000);
++    const result = await service.getFeed(
++      defaultFilters,
++      new AbortController().signal,
++    );
++
++    expect(result.providers[0]).toMatchObject({
++      providerId: 'guardian',
++      status: 'error',
++      errorCode: 'invalid_response',
++    });
++  });
++
+   it('calls only providers selected by the source filter', async () => {
+     const guardianFetch = createResolvedFetch();
+     const nytFetch = createResolvedFetch();
+diff --git a/src/server/modules/feed/feed.service.ts b/src/server/modules/feed/feed.service.ts
+index 23d12ea..c344254 100644
+--- a/src/server/modules/feed/feed.service.ts
++++ b/src/server/modules/feed/feed.service.ts
+@@ -59,10 +59,10 @@ const filterArticlesByAuthor = (
+ 
+   const normalizedAuthors = new Set(authors.map(normalizeAuthor));
+ 
+-  return articles.filter(
+-    (article) =>
+-      article.author !== undefined &&
+-      normalizedAuthors.has(normalizeAuthor(article.author)),
++  return articles.filter((article) =>
++    article.authors.some((author) =>
++      normalizedAuthors.has(normalizeAuthor(author)),
++    ),
+   );
+ };
+ 
+diff --git a/src/server/providers/guardian/fixtures/malformed-timestamp.json b/src/server/providers/guardian/fixtures/malformed-timestamp.json
+new file mode 100644
+index 0000000..40bb2a9
+--- /dev/null
++++ b/src/server/providers/guardian/fixtures/malformed-timestamp.json
+@@ -0,0 +1,15 @@
++{
++  "response": {
++    "status": "ok",
++    "results": [
++      {
++        "id": "technology/invalid-date",
++        "type": "article",
++        "sectionId": "technology",
++        "webPublicationDate": "not-a-date",
++        "webTitle": "Invalid timestamp fixture",
++        "webUrl": "https://www.theguardian.com/technology/invalid-date"
++      }
++    ]
++  }
++}
+diff --git a/src/server/providers/guardian/guardian.adapter.test.ts b/src/server/providers/guardian/guardian.adapter.test.ts
+index 9b49da7..9c105f3 100644
+--- a/src/server/providers/guardian/guardian.adapter.test.ts
++++ b/src/server/providers/guardian/guardian.adapter.test.ts
+@@ -1,8 +1,18 @@
+ import { describe, expect, it } from 'vitest';
+ import { buildGuardianUrl } from './guardian.provider';
+-import { mapGuardianResponse } from './guardian.response';
++import {
++  guardianResponseSchema,
++  mapGuardianResponse,
++} from './guardian.response';
++import malformedTimestamp from './fixtures/malformed-timestamp.json';
+ 
+ describe('Guardian adapter mapping', () => {
++  it('rejects malformed provider timestamps', () => {
++    expect(guardianResponseSchema.safeParse(malformedTimestamp).success).toBe(
++      false,
++    );
++  });
++
+   it('translates normalized filters into Guardian query parameters', () => {
+     const url = buildGuardianUrl(
+       {
+@@ -48,7 +58,7 @@ describe('Guardian adapter mapping', () => {
+       id: 'guardian:technology/example',
+       title: 'Example title',
+       description: 'Example description',
+-      author: 'Example Author',
++      authors: ['Example Author'],
+       categories: ['technology'],
+       source: { id: 'guardian', name: 'The Guardian' },
+     });
+diff --git a/src/server/providers/guardian/guardian.response.ts b/src/server/providers/guardian/guardian.response.ts
+index d46b86c..0e70b24 100644
+--- a/src/server/providers/guardian/guardian.response.ts
++++ b/src/server/providers/guardian/guardian.response.ts
+@@ -1,5 +1,6 @@
+ import type { Article, Category } from '@contracts/index';
+ import { z } from 'zod';
++import { normalizeProviderAuthors } from '../normalize-provider-authors';
+ 
+ export type GuardianResponse = z.infer<typeof guardianResponseSchema>;
+ type GuardianItem = GuardianResponse['response']['results'][number];
+@@ -22,7 +23,7 @@ export const guardianResponseSchema = z.object({
+         type: z.string(),
+         sectionId: z.string().optional(),
+         sectionName: z.string().optional(),
+-        webPublicationDate: z.string(),
++        webPublicationDate: z.string().datetime({ offset: true }),
+         webTitle: z.string(),
+         webUrl: z.string().url(),
+         fields: z
+@@ -52,7 +53,7 @@ export const mapGuardianResponse = (payload: GuardianResponse): Article[] =>
+       ? { description: stripHtml(item.fields?.trailText) }
+       : {}),
+     ...(item.fields?.thumbnail ? { imageUrl: item.fields.thumbnail } : {}),
+-    ...(item.fields?.byline ? { author: item.fields.byline } : {}),
++    authors: normalizeProviderAuthors(item.fields?.byline),
+     publishedAt: new Date(item.webPublicationDate).toISOString(),
+     categories: [categoryBySection[item.sectionId ?? ''] ?? 'general'],
+     source: { id: 'guardian', name: 'The Guardian' },
+diff --git a/src/server/providers/mock/mock-articles.ts b/src/server/providers/mock/mock-articles.ts
+index 40bc29d..d71adca 100644
+--- a/src/server/providers/mock/mock-articles.ts
++++ b/src/server/providers/mock/mock-articles.ts
+@@ -14,7 +14,7 @@ export const mockArticles: Record<ProviderId, Article[]> = {
+         'Engineering leaders are tightening model governance while keeping product teams moving quickly.',
+       imageUrl:
+         'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80',
+-      author: 'Elena Brooks',
++      authors: ['Elena Brooks'],
+       publishedAt: hoursAgo(1),
+       categories: ['technology'],
+       keywords: ['AI', 'governance'],
+@@ -28,7 +28,7 @@ export const mockArticles: Record<ProviderId, Article[]> = {
+         'A cross-border research effort has reduced the time needed to model local weather extremes.',
+       imageUrl:
+         'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80',
+-      author: 'Nadia Okafor',
++      authors: ['Nadia Okafor'],
+       publishedAt: hoursAgo(5),
+       categories: ['science'],
+       source: { id: 'guardian', name: 'The Guardian' },
+@@ -39,7 +39,7 @@ export const mockArticles: Record<ProviderId, Article[]> = {
+       title: 'Hospitals test privacy-first patient data exchange',
+       description:
+         'The pilot focuses on interoperability without centralizing sensitive medical records.',
+-      author: 'Maya Chen',
++      authors: ['Maya Chen'],
+       publishedAt: hoursAgo(11),
+       categories: ['health'],
+       source: { id: 'guardian', name: 'The Guardian' },
+@@ -54,7 +54,7 @@ export const mockArticles: Record<ProviderId, Article[]> = {
+         'Technology buyers are asking vendors to prove measurable value before approving larger contracts.',
+       imageUrl:
+         'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80',
+-      author: 'Jordan Lee',
++      authors: ['Jordan Lee'],
+       publishedAt: hoursAgo(2),
+       categories: ['business', 'technology'],
+       keywords: ['cloud', 'business'],
+@@ -68,7 +68,7 @@ export const mockArticles: Record<ProviderId, Article[]> = {
+         'Open tooling is helping smaller research groups process observations once reserved for major institutions.',
+       imageUrl:
+         'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=1200&q=80',
+-      author: 'Priya Raman',
++      authors: ['Priya Raman'],
+       publishedAt: hoursAgo(7),
+       categories: ['science'],
+       source: { id: 'nyt', name: 'The New York Times' },
+@@ -79,7 +79,7 @@ export const mockArticles: Record<ProviderId, Article[]> = {
+       title: 'Football clubs build smaller, sharper analytics teams',
+       description:
+         'The newest competitive edge is not more data, but better questions and faster feedback loops.',
+-      author: 'Daniel Foster',
++      authors: ['Daniel Foster'],
+       publishedAt: hoursAgo(14),
+       categories: ['sports'],
+       source: { id: 'nyt', name: 'The New York Times' },
+@@ -94,7 +94,7 @@ export const mockArticles: Record<ProviderId, Article[]> = {
+         'Automated checks are catching costly regressions before they reach production.',
+       imageUrl:
+         'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80',
+-      author: 'Amir Solberg',
++      authors: ['Amir Solberg'],
+       publishedAt: hoursAgo(3),
+       categories: ['technology'],
+       keywords: ['frontend', 'performance'],
+@@ -106,7 +106,7 @@ export const mockArticles: Record<ProviderId, Article[]> = {
+       title: 'Biotech funding returns with stricter milestones',
+       description:
+         'Investors are backing smaller rounds tied to clinical and manufacturing evidence.',
+-      author: 'Sofia Marin',
++      authors: ['Sofia Marin'],
+       publishedAt: hoursAgo(9),
+       categories: ['business', 'health'],
+       source: { id: 'newsapi', name: 'Market Wire' },
+@@ -119,7 +119,7 @@ export const mockArticles: Record<ProviderId, Article[]> = {
+         'Studios are testing flexible schedules to balance subscriber growth and audience retention.',
+       imageUrl:
+         'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=1200&q=80',
+-      author: 'Leila Hart',
++      authors: ['Leila Hart'],
+       publishedAt: hoursAgo(17),
+       categories: ['entertainment'],
+       source: { id: 'newsapi', name: 'Culture Desk' },
+diff --git a/src/server/providers/mock/mock-provider.ts b/src/server/providers/mock/mock-provider.ts
+index 9386159..940e147 100644
+--- a/src/server/providers/mock/mock-provider.ts
++++ b/src/server/providers/mock/mock-provider.ts
+@@ -47,8 +47,10 @@ export class MockProvider implements NewsProvider {
+         );
+       const authorMatches =
+         filters.authors.length === 0 ||
+-        filters.authors.some((author) =>
+-          includesInsensitive(article.author, author),
++        filters.authors.some((preferredAuthor) =>
++          article.authors.some((author) =>
++            includesInsensitive(author, preferredAuthor),
++          ),
+         );
+       const date = article.publishedAt.slice(0, 10);
+       const afterFrom = !filters.dateFrom || date >= filters.dateFrom;
+diff --git a/src/server/providers/newsapi/fixtures/malformed-timestamp.json b/src/server/providers/newsapi/fixtures/malformed-timestamp.json
+new file mode 100644
+index 0000000..c67fc45
+--- /dev/null
++++ b/src/server/providers/newsapi/fixtures/malformed-timestamp.json
+@@ -0,0 +1,16 @@
++{
++  "status": "ok",
++  "totalResults": 1,
++  "articles": [
++    {
++      "source": { "id": null, "name": "Fixture Source" },
++      "author": "Jane Smith",
++      "title": "Invalid timestamp fixture",
++      "description": null,
++      "url": "https://example.com/invalid-date",
++      "urlToImage": null,
++      "publishedAt": "yesterday",
++      "content": null
++    }
++  ]
++}
+diff --git a/src/server/providers/newsapi/newsapi.adapter.test.ts b/src/server/providers/newsapi/newsapi.adapter.test.ts
+index 020779f..b71b561 100644
+--- a/src/server/providers/newsapi/newsapi.adapter.test.ts
++++ b/src/server/providers/newsapi/newsapi.adapter.test.ts
+@@ -1,8 +1,18 @@
+ import { describe, expect, it } from 'vitest';
+ import { buildNewsApiUrl } from './newsapi.provider';
+-import { mapNewsApiResponse } from './newsapi.response';
++import {
++  mapNewsApiResponse,
++  newsApiResponseSchema,
++} from './newsapi.response';
++import malformedTimestamp from './fixtures/malformed-timestamp.json';
+ 
+ describe('NewsAPI adapter mapping', () => {
++  it('rejects malformed provider timestamps', () => {
++    expect(newsApiResponseSchema.safeParse(malformedTimestamp).success).toBe(
++      false,
++    );
++  });
++
+   it('uses normalized filters in the Everything endpoint', () => {
+     const url = buildNewsApiUrl(
+       {
+@@ -53,6 +63,7 @@ describe('NewsAPI adapter mapping', () => {
+     expect(articles).toHaveLength(1);
+     expect(articles[0]).toMatchObject({
+       title: 'Software teams improve frontend performance',
++      authors: ['Example Author'],
+       categories: ['technology'],
+       source: { id: 'newsapi', name: 'Engineering Daily' },
+     });
+diff --git a/src/server/providers/newsapi/newsapi.response.ts b/src/server/providers/newsapi/newsapi.response.ts
+index 9b47a44..2a5963b 100644
+--- a/src/server/providers/newsapi/newsapi.response.ts
++++ b/src/server/providers/newsapi/newsapi.response.ts
+@@ -1,6 +1,7 @@
+ import type { Article } from '@contracts/index';
+ import { z } from 'zod';
+ import { inferCategory } from './newsapi.provider';
++import { normalizeProviderAuthors } from '../normalize-provider-authors';
+ 
+ export type NewsApiResponse = z.infer<typeof newsApiResponseSchema>;
+ type NewsApiItem = NewsApiResponse['articles'][number];
+@@ -16,7 +17,7 @@ export const newsApiResponseSchema = z.object({
+       description: z.string().nullable(),
+       url: z.string().url(),
+       urlToImage: z.string().url().nullable(),
+-      publishedAt: z.string(),
++      publishedAt: z.string().datetime({ offset: true }),
+       content: z.string().nullable().optional(),
+     }),
+   ),
+@@ -31,7 +32,7 @@ export const mapNewsApiResponse = (payload: NewsApiResponse): Article[] =>
+       title: item.title,
+       ...(item.description ? { description: item.description } : {}),
+       ...(item.urlToImage ? { imageUrl: item.urlToImage } : {}),
+-      ...(item.author ? { author: item.author } : {}),
++      authors: normalizeProviderAuthors(item.author),
+       publishedAt: new Date(item.publishedAt).toISOString(),
+       categories: [inferCategory(item.title, item.description)],
+       source: { id: 'newsapi', name: item.source.name || 'NewsAPI' },
+diff --git a/src/server/providers/normalize-provider-authors.test.ts b/src/server/providers/normalize-provider-authors.test.ts
+new file mode 100644
+index 0000000..05c80ab
+--- /dev/null
++++ b/src/server/providers/normalize-provider-authors.test.ts
+@@ -0,0 +1,21 @@
++import { describe, expect, it } from 'vitest';
++import { normalizeProviderAuthors } from './normalize-provider-authors';
++
++describe('normalizeProviderAuthors', () => {
++  it.each([
++    ['By Jane Smith', ['Jane Smith']],
++    ['Jane Smith and John Doe', ['Jane Smith', 'John Doe']],
++    ['By Jane Smith, Reuters', ['Jane Smith']],
++    ['Jane Smith; John Doe', ['Jane Smith', 'John Doe']],
++    ['Jane Smith, John Doe', ['Jane Smith', 'John Doe']],
++    ['Reuters', []],
++  ])('normalizes %j', (byline, expected) => {
++    expect(normalizeProviderAuthors(byline)).toEqual(expected);
++  });
++
++  it('deduplicates authors case-insensitively', () => {
++    expect(normalizeProviderAuthors('Jane Smith and jane smith')).toEqual([
++      'Jane Smith',
++    ]);
++  });
++});
+diff --git a/src/server/providers/normalize-provider-authors.ts b/src/server/providers/normalize-provider-authors.ts
+new file mode 100644
+index 0000000..d5b3bf2
+--- /dev/null
++++ b/src/server/providers/normalize-provider-authors.ts
+@@ -0,0 +1,71 @@
++const attributionNames = [
++  'Associated Press',
++  'AP',
++  'Agence France-Presse',
++  'AFP',
++  'Reuters',
++  'Guardian staff reporter',
++  'The Guardian',
++  'The New York Times',
++];
++
++const attributionPattern = new RegExp(
++  `(?:,|\\(|\\s+-\\s+)\\s*(?:${attributionNames
++    .map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
++    .join('|')})\\)?\\.?$`,
++  'i',
++);
++
++const agencyOnlyPattern = new RegExp(
++  `^(?:${[...attributionNames, 'agencies']
++    .map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
++    .join('|')})$`,
++  'i',
++);
++
++export const normalizeAuthorKey = (value: string): string =>
++  value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('en-US');
++
++const cleanByline = (value: string): string =>
++  value
++    .replace(/<[^>]*>/g, ' ')
++    .replace(/^\s*by\s+/i, '')
++    .replace(/\s+/g, ' ')
++    .trim()
++    .replace(attributionPattern, '')
++    .trim();
++
++const splitByline = (value: string): string[] => {
++  const collaborationSegments = value.split(/\s+(?:and|&)\s+|\s*;\s*|\s*\|\s*/i);
++
++  return collaborationSegments.flatMap((segment) => {
++    const commaSegments = segment.split(/\s*,\s*/);
++    const isAuthorList =
++      commaSegments.length > 1 &&
++      commaSegments.every((part) => part.trim().split(/\s+/).length >= 2);
++
++    return isAuthorList ? commaSegments : [segment];
++  });
++};
++
++export const normalizeProviderAuthors = (
++  value?: string | null,
++): string[] => {
++  if (!value?.trim()) {
++    return [];
++  }
++
++  const seen = new Set<string>();
++
++  return splitByline(cleanByline(value))
++    .map((author) => author.replace(/^\s*by\s+/i, '').trim())
++    .filter((author) => author.length > 0 && !agencyOnlyPattern.test(author))
++    .filter((author) => {
++      const key = normalizeAuthorKey(author);
++      if (seen.has(key)) {
++        return false;
++      }
++      seen.add(key);
++      return true;
++    });
++};
+diff --git a/src/server/providers/nyt/fixtures/malformed-timestamp.json b/src/server/providers/nyt/fixtures/malformed-timestamp.json
+new file mode 100644
+index 0000000..5cc3e65
+--- /dev/null
++++ b/src/server/providers/nyt/fixtures/malformed-timestamp.json
+@@ -0,0 +1,17 @@
++{
++  "status": "OK",
++  "response": {
++    "docs": [
++      {
++        "abstract": "Invalid timestamp fixture",
++        "byline": { "original": "By Jane Smith" },
++        "headline": { "main": "Invalid timestamp fixture" },
++        "_id": "nyt://article/invalid-date",
++        "keywords": [],
++        "multimedia": null,
++        "pub_date": "2026-99-99",
++        "web_url": "https://www.nytimes.com/invalid-date"
++      }
++    ]
++  }
++}
+diff --git a/src/server/providers/nyt/nyt.adapter.test.ts b/src/server/providers/nyt/nyt.adapter.test.ts
+index fee8c60..075d1fc 100644
+--- a/src/server/providers/nyt/nyt.adapter.test.ts
++++ b/src/server/providers/nyt/nyt.adapter.test.ts
+@@ -1,8 +1,13 @@
+ import { describe, expect, it } from 'vitest';
+-import { mapNytResponse } from './nyt.response';
++import { mapNytResponse, nytResponseSchema } from './nyt.response';
++import malformedTimestamp from './fixtures/malformed-timestamp.json';
+ import { buildNytUrl } from './nyt.provider';
+ 
+ describe('New York Times adapter mapping', () => {
++  it('rejects malformed provider timestamps', () => {
++    expect(nytResponseSchema.safeParse(malformedTimestamp).success).toBe(false);
++  });
++
+   it('translates dates and categories into Article Search parameters', () => {
+     const url = buildNytUrl(
+       {
+@@ -145,7 +150,7 @@ describe('New York Times adapter mapping', () => {
+       id: 'nyt:nyt://article/a7b1db10-d6d7-5afe-aa1b-d8d3856b040a',
+       title:
+         'Malaysian Pilot Smuggled 55 Pounds of Ecstasy Into Indonesia, Officials Say',
+-      author: 'Johnny Diaz',
++      authors: ['Johnny Diaz'],
+       imageUrl:
+         'https://static01.nyt.com/images/2026/08/05/multimedia/05xp-pilot/05xp-pilot-thumbStandard.jpg',
+       categories: ['general'],
+diff --git a/src/server/providers/nyt/nyt.response.ts b/src/server/providers/nyt/nyt.response.ts
+index b07c237..18f59cc 100644
+--- a/src/server/providers/nyt/nyt.response.ts
++++ b/src/server/providers/nyt/nyt.response.ts
+@@ -1,5 +1,6 @@
+ import { z } from 'zod';
+ import type { Article, Category } from '@contracts/index';
++import { normalizeProviderAuthors } from '../normalize-provider-authors';
+ 
+ type NytDocument = NytResponse['response']['docs'][number];
+ type NytMultimedia = z.infer<typeof nytMultimediaSchema>;
+@@ -65,7 +66,7 @@ const nytDocumentSchema = z.object({
+   multimedia: nytMultimediaSchema,
+ 
+   news_desk: z.string().nullable().optional(),
+-  pub_date: z.string(),
++  pub_date: z.string().datetime({ offset: true }),
+   section_name: z.string().nullable().optional(),
+   snippet: z.string().optional().default(''),
+   source: z.string().optional().default('The New York Times'),
+@@ -113,14 +114,14 @@ export const mapNytResponse = (payload: NytResponse): Article[] =>
+   payload.response.docs.map((item: NytDocument) => {
+     const image = getNytImageUrl(item.multimedia);
+     const description = item.abstract ?? item.snippet ?? undefined;
+-    const author = item.byline?.original?.replace(/^By\s+/i, '') || undefined;
++    const authors = normalizeProviderAuthors(item.byline?.original);
+     return {
+       id: `nyt:${item._id}`,
+       url: item.web_url,
+       title: item.headline.main,
+       ...(description ? { description } : {}),
+       ...(image ? { imageUrl: image } : {}),
+-      ...(author ? { author } : {}),
++      authors,
+       publishedAt: new Date(item.pub_date).toISOString(),
+       keywords:
+         item.keywords?.map((keyword: NytKeyword) => keyword.value) ?? [],
+diff --git a/src/server/shared/config/server-env.schema.ts b/src/server/shared/config/server-env.schema.ts
+index 9661175..b8bcfec 100644
+--- a/src/server/shared/config/server-env.schema.ts
++++ b/src/server/shared/config/server-env.schema.ts
+@@ -1,5 +1,14 @@
+ import { z } from 'zod';
+ 
++const optionalHttpUrl = z.preprocess(
++  (value) => (value === '' ? undefined : value),
++  z
++    .string()
++    .url()
++    .refine((value) => ['http:', 'https:'].includes(new URL(value).protocol))
++    .optional(),
++);
++
+ export const serverEnvSchema = z.object({
+   NODE_ENV: z
+     .enum(['development', 'test', 'production'])
+@@ -19,4 +28,6 @@ export const serverEnvSchema = z.object({
+   GUARDIAN_API_KEY: z.string().optional(),
+   NYT_API_KEY: z.string().optional(),
+   NEWS_API_KEY: z.string().optional(),
++  SENTRY_DSN: optionalHttpUrl,
++  VITE_SENTRY_DSN: optionalHttpUrl,
+ });
+diff --git a/src/server/shared/config/server-env.ts b/src/server/shared/config/server-env.ts
+index c277533..ffddfd7 100644
+--- a/src/server/shared/config/server-env.ts
++++ b/src/server/shared/config/server-env.ts
+@@ -10,6 +10,8 @@ const ENV = {
+   GUARDIAN_API_KEY: process.env.GUARDIAN_API_KEY,
+   NYT_API_KEY: process.env.NYT_API_KEY,
+   NEWS_API_KEY: process.env.NEWS_API_KEY,
++  SENTRY_DSN: process.env.SENTRY_DSN,
++  VITE_SENTRY_DSN: process.env.VITE_SENTRY_DSN,
+ };
+ const result = serverEnvSchema.safeParse(ENV);
+ 
+diff --git a/tests/e2e/accessibility.spec.ts b/tests/e2e/accessibility.spec.ts
+new file mode 100644
+index 0000000..61ebec0
+--- /dev/null
++++ b/tests/e2e/accessibility.spec.ts
+@@ -0,0 +1,123 @@
++import axe from 'axe-core';
++import { expect, test, type Page, type TestInfo } from '@playwright/test';
++
++interface AxeNode {
++  target: string[];
++  failureSummary?: string;
++}
++
++interface AxeViolation {
++  id: string;
++  impact: string | null;
++  help: string;
++  nodes: AxeNode[];
++}
++
++interface AxeResult {
++  violations: AxeViolation[];
++}
++
++interface AxeApi {
++  run: (
++    context: unknown,
++    options: {
++      runOnly: {
++        type: 'tag';
++        values: string[];
++      };
++    },
++  ) => Promise<AxeResult>;
++}
++
++const wcagTags = [
++  'wcag2a',
++  'wcag2aa',
++  'wcag21a',
++  'wcag21aa',
++  'wcag22a',
++  'wcag22aa',
++];
++
++const runAxe = async (
++  page: Page,
++  testInfo: TestInfo,
++  label: string,
++): Promise<void> => {
++  await page.evaluate(axe.source);
++
++  const result = await page.evaluate(async (tags) => {
++    const browser = globalThis as unknown as {
++      axe: AxeApi;
++      document: unknown;
++    };
++
++    return browser.axe.run(browser.document, {
++      runOnly: { type: 'tag', values: tags },
++    });
++  }, wcagTags);
++
++  const violations = result.violations.map((violation) => ({
++    id: violation.id,
++    impact: violation.impact,
++    help: violation.help,
++    nodes: violation.nodes.map((node) => ({
++      target: node.target,
++      failureSummary: node.failureSummary,
++    })),
++  }));
++
++  await testInfo.attach(`axe-${label}`, {
++    body: JSON.stringify(violations, null, 2),
++    contentType: 'application/json',
++  });
++
++  expect(violations, JSON.stringify(violations, null, 2)).toEqual([]);
++};
++
++test('key routes pass the automated WCAG axe gate', async ({ page }, testInfo) => {
++  test.skip(
++    testInfo.project.name !== 'desktop-chromium',
++    'The full accessibility gate runs once in desktop Chromium.',
++  );
++
++  for (const route of [
++    {
++      path: '/',
++      label: 'news',
++      ready: () => page.getByRole('region', { name: 'News articles' }),
++    },
++    {
++      path: '/for-you',
++      label: 'for-you',
++      ready: () => page.getByRole('heading', { name: 'For You', level: 1 }),
++    },
++    {
++      path: '/preferences',
++      label: 'preferences',
++      ready: () =>
++        page.getByRole('heading', { name: 'Customize your feed', level: 1 }),
++    },
++  ]) {
++    await page.goto(route.path);
++    await expect(route.ready()).toBeVisible();
++    await runAxe(page, testInfo, route.label);
++  }
++});
++
++test('mobile filter drawer passes the automated WCAG axe gate', async ({
++  page,
++  isMobile,
++}, testInfo) => {
++  test.skip(!isMobile, 'This check targets the modal mobile filter state.');
++
++  await page.goto('/');
++  await expect(
++    page.getByRole('region', { name: 'News articles' }),
++  ).toBeVisible();
++  await page.getByRole('button', { name: 'Open filters' }).click();
++  await expect(
++    page.getByRole('dialog', { name: 'Filter articles' }),
++  ).toBeVisible();
++
++  await runAxe(page, testInfo, 'mobile-filter-drawer');
++});
+diff --git a/tests/e2e/author-personalization.spec.ts b/tests/e2e/author-personalization.spec.ts
+new file mode 100644
+index 0000000..77fc9e6
+--- /dev/null
++++ b/tests/e2e/author-personalization.spec.ts
+@@ -0,0 +1,31 @@
++import { expect, test } from '@playwright/test';
++
++test('discovers canonical authors and marks provider-unavailable selections', async ({
++  page,
++}, testInfo) => {
++  test.skip(
++    testInfo.project.name !== 'desktop-chromium',
++    'This cache-backed personalization journey only needs one browser project.',
++  );
++
++  await page.goto('/');
++  await expect(
++    page.getByRole('heading', {
++      name: /Frontend teams make performance budgets/i,
++    }),
++  ).toBeVisible();
++
++  await page.getByRole('link', { name: 'Preferences' }).click();
++  await page.getByRole('button', { name: 'Maya Chen' }).click();
++
++  const selectedAuthor = page
++    .getByRole('list', { name: 'Preferred authors' })
++    .getByRole('listitem')
++    .filter({ hasText: 'Maya Chen' });
++
++  await expect(selectedAuthor).toBeVisible();
++  await page.getByLabel('The New York Times').check();
++  await expect(selectedAuthor).toContainText(
++    'Unavailable in selected providers',
++  );
++});
+diff --git a/tests/e2e/cross-browser-smoke.spec.ts b/tests/e2e/cross-browser-smoke.spec.ts
+new file mode 100644
+index 0000000..accfd5a
+--- /dev/null
++++ b/tests/e2e/cross-browser-smoke.spec.ts
+@@ -0,0 +1,19 @@
++import { expect, test } from '@playwright/test';
++
++test('loads and searches the feed in a secondary browser engine', async ({
++  page,
++}) => {
++  await page.goto('/');
++  await expect(page.locator('#main-content')).toBeVisible();
++
++  await page
++    .getByRole('searchbox', { name: 'Search articles' })
++    .fill('performance');
++
++  await expect(page).toHaveURL(/query=performance/);
++  await expect(
++    page.getByRole('heading', {
++      name: /Frontend teams make performance budgets/i,
++    }),
++  ).toBeVisible();
++});
+diff --git a/tests/e2e/date-range-validation.spec.ts b/tests/e2e/date-range-validation.spec.ts
+new file mode 100644
+index 0000000..7d11aab
+--- /dev/null
++++ b/tests/e2e/date-range-validation.spec.ts
+@@ -0,0 +1,63 @@
++import { expect, test } from '@playwright/test';
++
++const invalidFrom = '2026-02-01';
++const invalidTo = '2026-01-01';
++const validTo = '2026-03-01';
++
++test('preserves invalid date values and blocks them before submission', async ({
++  page,
++  isMobile,
++}) => {
++  await page.goto('/');
++
++  const scope = isMobile
++    ? page.getByRole('dialog', { name: 'Filter articles' })
++    : page.getByRole('complementary', { name: 'Article filters' });
++
++  if (isMobile) {
++    await page.getByRole('button', { name: 'Open filters' }).click();
++    await expect(scope).toBeVisible();
++  }
++
++  const from = scope.getByLabel('From');
++  const to = scope.getByLabel('To');
++
++  await from.fill(invalidFrom);
++  await to.fill(invalidTo);
++
++  await expect(from).toHaveValue(invalidFrom);
++  await expect(to).toHaveValue(invalidTo);
++  await expect(from).toHaveAttribute('max', invalidTo);
++  await expect(to).toHaveAttribute('min', invalidFrom);
++  await expect(from).toHaveAttribute('aria-invalid', 'true');
++  await expect(to).toHaveAttribute('aria-invalid', 'true');
++  await expect(
++    scope.getByText('The start date must be on or before the end date.'),
++  ).toBeVisible();
++  if (isMobile) {
++    await expect(page).not.toHaveURL(/dateFrom=/);
++    await expect(page).not.toHaveURL(/dateTo=/);
++  } else {
++    await expect(page).toHaveURL(new RegExp(`dateFrom=${invalidFrom}`));
++    await expect(page).not.toHaveURL(/dateTo=/);
++  }
++
++  if (isMobile) {
++    await expect(
++      scope.getByRole('button', { name: 'Apply filters' }),
++    ).toBeDisabled();
++  }
++
++  await to.fill(validTo);
++  await expect(from).not.toHaveAttribute('aria-invalid', 'true');
++  await expect(to).not.toHaveAttribute('aria-invalid', 'true');
++
++  if (isMobile) {
++    const apply = scope.getByRole('button', { name: 'Apply filters' });
++    await expect(apply).toBeEnabled();
++    await apply.click();
++  }
++
++  await expect(page).toHaveURL(new RegExp(`dateFrom=${invalidFrom}`));
++  await expect(page).toHaveURL(new RegExp(`dateTo=${validTo}`));
++});
+diff --git a/tests/e2e/fixtures/feed-partial-failure.json b/tests/e2e/fixtures/feed-partial-failure.json
+index 5f32302..81e6b21 100644
+--- a/tests/e2e/fixtures/feed-partial-failure.json
++++ b/tests/e2e/fixtures/feed-partial-failure.json
+@@ -6,19 +6,36 @@
+       "title": "Successful article remains visible",
+       "description": "A provider failure must not erase valid results from other sources.",
+       "publishedAt": "2026-08-04T12:00:00.000Z",
+-      "categories": ["technology"],
+-      "source": { "id": "guardian", "name": "The Guardian" }
++      "categories": [
++        "technology"
++      ],
++      "source": {
++        "id": "guardian",
++        "name": "The Guardian"
++      },
++      "authors": [
++        "Example Author"
++      ]
+     }
+   ],
+   "providers": [
+-    { "providerId": "guardian", "status": "success", "articleCount": 1 },
++    {
++      "providerId": "guardian",
++      "status": "success",
++      "articleCount": 1
++    },
+     {
+       "providerId": "nyt",
+       "status": "error",
+       "articleCount": 0,
+-      "errorMessage": "This source is temporarily unavailable."
++      "errorMessage": "This source is temporarily unavailable.",
++      "errorCode": "unknown"
+     },
+-    { "providerId": "newsapi", "status": "success", "articleCount": 0 }
++    {
++      "providerId": "newsapi",
++      "status": "success",
++      "articleCount": 0
++    }
+   ],
+   "generatedAt": "2026-08-04T12:00:00.000Z"
+ }
+diff --git a/tests/e2e/image-priority.spec.ts b/tests/e2e/image-priority.spec.ts
+new file mode 100644
+index 0000000..7307034
+--- /dev/null
++++ b/tests/e2e/image-priority.spec.ts
+@@ -0,0 +1,30 @@
++import { expect, test } from '@playwright/test';
++
++const onePixelPng = Buffer.from(
++  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
++  'base64',
++);
++
++test('prioritizes only the first visible article image', async ({ page }) => {
++  await page.route('https://images.unsplash.com/**', (route) =>
++    route.fulfill({
++      status: 200,
++      contentType: 'image/png',
++      body: onePixelPng,
++    }),
++  );
++
++  await page.goto('/');
++
++  const images = page.locator('[aria-label="News articles"] img');
++  await expect(images.first()).toBeVisible();
++  await expect(images.first()).toHaveAttribute('width', '460');
++  await expect(images.first()).toHaveAttribute('height', '340');
++  await expect(images.first()).toHaveAttribute('loading', 'eager');
++  await expect(images.first()).toHaveAttribute('fetchpriority', 'high');
++
++  if ((await images.count()) > 1) {
++    await expect(images.nth(1)).toHaveAttribute('loading', 'lazy');
++    await expect(images.nth(1)).toHaveAttribute('fetchpriority', 'auto');
++  }
++});
+diff --git a/tests/e2e/preferences.spec.ts b/tests/e2e/preferences.spec.ts
+index f077afa..0080f94 100644
+--- a/tests/e2e/preferences.spec.ts
++++ b/tests/e2e/preferences.spec.ts
+@@ -4,7 +4,7 @@ test('saves preferences and restores them after reload', async ({ page }) => {
+   await page.goto('/preferences');
+   await page.getByLabel('The New York Times').check();
+   await page.getByLabel('Science').check();
+-  await page.getByRole('textbox', { name: 'e.g. Maya Chen' }).fill('Priya');
++  await page.getByRole('textbox', { name: 'Preferred authors' }).fill('Priya');
+   await page.getByRole('button', { name: 'Add preferred author' }).click();
+   await page.getByRole('button', { name: 'Save preferences' }).click();
+   await page.reload();
+diff --git a/tests/e2e/security-headers.spec.ts b/tests/e2e/security-headers.spec.ts
+new file mode 100644
+index 0000000..b8bf215
+--- /dev/null
++++ b/tests/e2e/security-headers.spec.ts
+@@ -0,0 +1,70 @@
++import { expect, test } from '@playwright/test';
++
++test('serves the production client with strict security headers', async ({
++  request,
++}) => {
++  const response = await request.get('/', {
++    headers: { Accept: 'text/html' },
++  });
++  const headers = response.headers();
++  const csp = headers['content-security-policy'] ?? '';
++
++  expect(response.ok()).toBe(true);
++  expect(csp).toContain("default-src 'self'");
++  expect(csp).toContain("style-src 'self'");
++  expect(csp).toContain("script-src 'self'");
++  expect(csp).toContain("style-src-attr 'none'");
++  expect(csp).toContain("script-src-attr 'none'");
++  expect(csp).not.toContain("'unsafe-inline'");
++  expect(headers['x-content-type-options']).toBe('nosniff');
++  expect(headers['x-frame-options']).toBe('SAMEORIGIN');
++  expect(headers['referrer-policy']).toBeDefined();
++});
++
++test('mobile drawer interaction does not rely on blocked inline styles', async ({
++  page,
++  isMobile,
++}) => {
++  test.skip(!isMobile, 'This check exercises the mobile modal interaction.');
++
++  await page.addInitScript(() => {
++    const violations: string[] = [];
++    const browser = globalThis as unknown as {
++      __cspViolations?: string[];
++      document: {
++        addEventListener: (
++          type: string,
++          listener: (event: {
++            violatedDirective: string;
++            blockedURI: string;
++          }) => void,
++        ) => void;
++      };
++    };
++
++    browser.__cspViolations = violations;
++    browser.document.addEventListener('securitypolicyviolation', (event) => {
++      violations.push(`${event.violatedDirective}: ${event.blockedURI}`);
++    });
++  });
++
++  await page.goto('/');
++  await page.getByRole('button', { name: 'Open filters' }).click();
++  await expect(
++    page.getByRole('dialog', { name: 'Filter articles' }),
++  ).toBeVisible();
++
++  const bodyHasInlineStyle = await page
++    .locator('body')
++    .evaluate((body) => body.hasAttribute('style'));
++  expect(bodyHasInlineStyle).toBe(false);
++
++  await page.waitForTimeout(100);
++  const violations = await page.evaluate(
++    () =>
++      (globalThis as unknown as { __cspViolations?: string[] })
++        .__cspViolations ?? [],
++  );
++
++  expect(violations).toEqual([]);
++});

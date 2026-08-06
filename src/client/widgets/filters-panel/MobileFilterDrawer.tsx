@@ -21,7 +21,12 @@ export const MobileFilterDrawer = ({
 }: MobileFilterDrawerProps) => {
   return (
     <>
-      <Drawer open={open} title="Filter articles" onClose={onClose}>
+      <Drawer
+        id="mobile-filter-drawer"
+        open={open}
+        title="Filter articles"
+        onClose={onClose}
+      >
         <FiltersPanel
           filters={filters}
           onChange={onChange}

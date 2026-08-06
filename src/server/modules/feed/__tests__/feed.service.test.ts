@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Article, ArticleFilters, ProviderId } from '@contracts/index';
 import type { NewsProvider } from '@server/providers/news-provider';
 import { FeedService } from '../feed.service';
+import { ProviderError } from '@server/providers/provider-errors';
+import { z } from 'zod';
 
 vi.mock('@server/shared/logging/logger', () => ({
   logger: {
@@ -31,7 +33,7 @@ const createArticle = (
     id: providerId,
     name: providerId,
   },
-  ...(author === undefined ? {} : { author }),
+  authors: author === undefined ? [] : [author],
 });
 
 const createProvider = (
@@ -113,6 +115,37 @@ describe('FeedService', () => {
     expect(newsApiFetch).toHaveBeenCalledOnce();
 
     expect(Number.isNaN(Date.parse(result.generatedAt))).toBe(false);
+  });
+
+  it('classifies malformed provider payloads as invalid_response', async () => {
+    const schemaError = z.string().datetime().safeParse('not-a-date');
+    if (schemaError.success) throw new Error('Expected fixture to be invalid.');
+
+    const providers = new Map<ProviderId, NewsProvider>([
+      [
+        'guardian',
+        createProvider(
+          'guardian',
+          createRejectedFetch(
+            new ProviderError('guardian', 'Invalid payload', {
+              cause: schemaError.error,
+            }),
+          ),
+        ),
+      ],
+    ]);
+
+    const service = new FeedService(providers, 1_000);
+    const result = await service.getFeed(
+      defaultFilters,
+      new AbortController().signal,
+    );
+
+    expect(result.providers[0]).toMatchObject({
+      providerId: 'guardian',
+      status: 'error',
+      errorCode: 'invalid_response',
+    });
   });
 
   it('calls only providers selected by the source filter', async () => {

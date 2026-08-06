@@ -1,5 +1,14 @@
 import { z } from 'zod';
 
+const optionalHttpUrl = z.preprocess(
+  (value) => (value === '' ? undefined : value),
+  z
+    .string()
+    .url()
+    .refine((value) => ['http:', 'https:'].includes(new URL(value).protocol))
+    .optional(),
+);
+
 export const serverEnvSchema = z.object({
   NODE_ENV: z
     .enum(['development', 'test', 'production'])
@@ -19,4 +28,6 @@ export const serverEnvSchema = z.object({
   GUARDIAN_API_KEY: z.string().optional(),
   NYT_API_KEY: z.string().optional(),
   NEWS_API_KEY: z.string().optional(),
+  SENTRY_DSN: optionalHttpUrl,
+  VITE_SENTRY_DSN: optionalHttpUrl,
 });

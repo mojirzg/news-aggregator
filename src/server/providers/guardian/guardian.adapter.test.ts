@@ -1,8 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { buildGuardianUrl } from './guardian.provider';
-import { mapGuardianResponse } from './guardian.response';
+import {
+  guardianResponseSchema,
+  mapGuardianResponse,
+} from './guardian.response';
+import malformedTimestamp from './fixtures/malformed-timestamp.json';
 
 describe('Guardian adapter mapping', () => {
+  it('rejects malformed provider timestamps', () => {
+    expect(guardianResponseSchema.safeParse(malformedTimestamp).success).toBe(
+      false,
+    );
+  });
+
   it('translates normalized filters into Guardian query parameters', () => {
     const url = buildGuardianUrl(
       {
@@ -48,7 +58,7 @@ describe('Guardian adapter mapping', () => {
       id: 'guardian:technology/example',
       title: 'Example title',
       description: 'Example description',
-      author: 'Example Author',
+      authors: ['Example Author'],
       categories: ['technology'],
       source: { id: 'guardian', name: 'The Guardian' },
     });

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { Article, Category } from '@contracts/index';
+import { normalizeProviderAuthors } from '../normalize-provider-authors';
 
 type NytDocument = NytResponse['response']['docs'][number];
 type NytMultimedia = z.infer<typeof nytMultimediaSchema>;
@@ -65,7 +66,7 @@ const nytDocumentSchema = z.object({
   multimedia: nytMultimediaSchema,
 
   news_desk: z.string().nullable().optional(),
-  pub_date: z.string(),
+  pub_date: z.string().datetime({ offset: true }),
   section_name: z.string().nullable().optional(),
   snippet: z.string().optional().default(''),
   source: z.string().optional().default('The New York Times'),
@@ -113,14 +114,14 @@ export const mapNytResponse = (payload: NytResponse): Article[] =>
   payload.response.docs.map((item: NytDocument) => {
     const image = getNytImageUrl(item.multimedia);
     const description = item.abstract ?? item.snippet ?? undefined;
-    const author = item.byline?.original?.replace(/^By\s+/i, '') || undefined;
+    const authors = normalizeProviderAuthors(item.byline?.original);
     return {
       id: `nyt:${item._id}`,
       url: item.web_url,
       title: item.headline.main,
       ...(description ? { description } : {}),
       ...(image ? { imageUrl: image } : {}),
-      ...(author ? { author } : {}),
+      authors,
       publishedAt: new Date(item.pub_date).toISOString(),
       keywords:
         item.keywords?.map((keyword: NytKeyword) => keyword.value) ?? [],

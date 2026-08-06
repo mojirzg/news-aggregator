@@ -30,6 +30,7 @@
 }
 .actions {
   display: flex;
+  flex-direction: column;
   gap: 8px;
   padding-top: 4px;
 }
@@ -62,4 +63,10 @@
     position: sticky;
     bottom: 8px;
   }
+}
+
+.applyHelp {
+  color: var(--color-danger);
+  font-size: 0.8125rem;
+  font-weight: 650;
 }

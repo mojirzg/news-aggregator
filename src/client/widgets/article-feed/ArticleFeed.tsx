@@ -6,10 +6,18 @@ interface ArticleFeedProps {
   articles: Article[];
 }
 
-export const ArticleFeed = ({ articles }: ArticleFeedProps) => (
-  <section className={styles.feed} aria-label="News articles">
-    {articles.map((article) => (
-      <ArticleCard key={article.id} article={article} />
-    ))}
-  </section>
-);
+export const ArticleFeed = ({ articles }: ArticleFeedProps) => {
+  const priorityImageIndex = articles.findIndex((article) => article.imageUrl);
+
+  return (
+    <section className={styles.feed} aria-label="News articles">
+      {articles.map((article, index) => (
+        <ArticleCard
+          key={article.id}
+          article={article}
+          isAboveTheFold={index === priorityImageIndex}
+        />
+      ))}
+    </section>
+  );
+};

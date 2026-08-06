@@ -20,7 +20,7 @@ export const articleSchema = z.object({
   title: z.string().trim().min(1),
   description: z.string().trim().optional(),
   imageUrl: z.string().url().optional(),
-  author: z.string().trim().optional(),
+  authors: z.array(z.string().trim().min(1).max(100)),
   publishedAt: isoDateTimeSchema,
   keywords: z.array(z.string()).optional(),
   categories: z.array(categorySchema),

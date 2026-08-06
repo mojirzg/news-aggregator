@@ -1,19 +1,15 @@
 import type { Article } from '@contracts/index';
 import { ProviderBadge } from '@client/entities/provider';
 import { formatPublicationDate } from '../lib/format-publication-date';
+import styles from './ArticleMetadata.module.css';
 
 export const ArticleMetadata = ({ article }: { article: Article }) => (
-  <div
-    style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}
-  >
+  <div className={styles.metadata}>
     <ProviderBadge id={article.source.id} name={article.source.name} />
-    <span aria-hidden="true" style={{ color: '#98a2b3' }}>
+    <span aria-hidden="true" className={styles.separator}>
       •
     </span>
-    <time
-      dateTime={article.publishedAt}
-      style={{ color: 'var(--color-text-muted)', fontSize: '0.82rem' }}
-    >
+    <time className={styles.date} dateTime={article.publishedAt}>
       {formatPublicationDate(article.publishedAt)}
     </time>
   </div>

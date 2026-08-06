@@ -3,9 +3,21 @@ import { ArticleImage } from './ArticleImage';
 import { ArticleMetadata } from './ArticleMetadata';
 import styles from './ArticleCard.module.css';
 
-export const ArticleCard = ({ article }: { article: Article }) => (
+interface ArticleCardProps {
+  article: Article;
+  isAboveTheFold?: boolean;
+}
+
+export const ArticleCard = ({
+  article,
+  isAboveTheFold = false,
+}: ArticleCardProps) => (
   <article className={styles.card}>
-    <ArticleImage className={styles.image} article={article} />
+    <ArticleImage
+      className={styles.image}
+      article={article}
+      isAboveTheFold={isAboveTheFold}
+    />
     <div className={styles.content}>
       <ArticleMetadata article={article} />
       <h2 className={styles.title}>
@@ -29,8 +41,10 @@ export const ArticleCard = ({ article }: { article: Article }) => (
             </span>
           ))}
         </div>
-        {article.author ? (
-          <span className={styles.author}>By {article.author}</span>
+        {article.authors.length > 0 ? (
+          <span className={styles.author}>
+            By {article.authors.join(', ')}
+          </span>
         ) : null}
       </footer>
     </div>

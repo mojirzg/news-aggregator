@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
 import { App } from './App';
 import { PageLoadingSkeleton } from '@client/shared/ui/PageLoadingSkeleton/PageLoadingSkeleton';
+import { RouteChunkBoundary } from './providers/RouteChunkBoundary';
 
 const NewsPage = lazy(() =>
   import('@client/pages/news').then((module) => ({
@@ -28,7 +29,9 @@ const NotFoundPage = lazy(() =>
 );
 
 const page = (element: React.ReactNode) => (
-  <Suspense fallback={<PageLoadingSkeleton />}>{element}</Suspense>
+  <RouteChunkBoundary>
+    <Suspense fallback={<PageLoadingSkeleton />}>{element}</Suspense>
+  </RouteChunkBoundary>
 );
 
 export const router = createBrowserRouter([
@@ -37,7 +40,7 @@ export const router = createBrowserRouter([
     children: [
       {
         path: '/',
-        element: <NewsPage />,
+        element: page(<NewsPage />),
       },
       {
         path: '/for-you',

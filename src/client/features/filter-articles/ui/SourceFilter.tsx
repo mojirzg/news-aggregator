@@ -1,6 +1,7 @@
 import type { ArticleFilters, ProviderId } from '@contracts/index';
 import { providerOptions } from '@client/shared/config/constants';
 import { Checkbox } from '@client/shared/ui/Checkbox';
+import styles from './FilterOptions.module.css';
 
 export const SourceFilter = ({
   filters,
@@ -17,7 +18,7 @@ export const SourceFilter = ({
   };
 
   return (
-    <div style={{ display: 'grid', gap: 6 }}>
+    <div className={styles.options}>
       {providerOptions.map((option) => (
         <Checkbox
           key={option.id}

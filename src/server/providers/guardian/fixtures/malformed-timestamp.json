@@ -1,0 +1,15 @@
+{
+  "response": {
+    "status": "ok",
+    "results": [
+      {
+        "id": "technology/invalid-date",
+        "type": "article",
+        "sectionId": "technology",
+        "webPublicationDate": "not-a-date",
+        "webTitle": "Invalid timestamp fixture",
+        "webUrl": "https://www.theguardian.com/technology/invalid-date"
+      }
+    ]
+  }
+}

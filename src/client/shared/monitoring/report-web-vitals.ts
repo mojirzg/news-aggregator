@@ -14,6 +14,10 @@ const logMetric = (metric: Metric): void => {
 };
 
 export const reportWebVitals = (): void => {
+  if (!import.meta.env.DEV) {
+    return;
+  }
+
   onCLS(logMetric);
   onFCP(logMetric);
   onINP(logMetric);

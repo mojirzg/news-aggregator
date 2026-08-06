@@ -60,7 +60,7 @@ jobs:
           if-no-files-found: error
 
   browser:
-    name: Playwright desktop and mobile
+    name: Playwright accessibility and cross-browser
     needs: quality
     runs-on: ubuntu-latest
     steps:
@@ -80,10 +80,10 @@ jobs:
         run: |
           set -o pipefail
           pnpm install --frozen-lockfile 2>&1 | tee quality-gate/install.log
-      - name: Install Playwright browser
+      - name: Install Playwright browsers
         run: |
           set -o pipefail
-          pnpm exec playwright install --with-deps chromium 2>&1 | tee quality-gate/playwright-install.log
+          pnpm exec playwright install --with-deps chromium firefox 2>&1 | tee quality-gate/playwright-install.log
       - name: Run end-to-end tests
         run: |
           set -o pipefail
