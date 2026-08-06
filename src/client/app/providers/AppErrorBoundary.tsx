@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react';
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { ErrorState } from '@client/shared/ui/ErrorState';
 import { Button } from '@client/shared/ui/Button';
@@ -23,15 +24,24 @@ export class AppErrorBoundary extends Component<
   public render() {
     if (this.state.hasError) {
       return (
-        <main className="container" style={{ padding: '64px 0' }}>
-          <ErrorState
-            action={
-              <Button type="button" onClick={() => window.location.reload()}>
-                Reload application
-              </Button>
-            }
-          />
-        </main>
+        <Sentry.ErrorBoundary
+          fallback={
+            <main>
+              <h1>Something went wrong</h1>
+              <p>The error has been recorded.</p>
+            </main>
+          }
+        >
+          <main className="container" style={{ padding: '64px 0' }}>
+            <ErrorState
+              action={
+                <Button type="button" onClick={() => window.location.reload()}>
+                  Reload application
+                </Button>
+              }
+            />
+          </main>
+        </Sentry.ErrorBoundary>
       );
     }
     return this.props.children;

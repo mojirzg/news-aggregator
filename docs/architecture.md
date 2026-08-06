@@ -70,3 +70,23 @@ The aggregation algorithm does not change.
 ## Build and deployment
 
 Vite builds the client to `dist/client`. tsup bundles the server entry to `dist/server/index.js`. The production Express process serves both `/api/*` and static React assets.
+
+## Performance observability
+
+The production client uses Sentry Browser Tracing for real-user
+performance monitoring.
+
+Captured signals include:
+
+- Core Web Vitals: LCP, INP and CLS
+- page-load and route-navigation duration
+- `/api/feed` request latency
+- JavaScript exceptions
+- partial provider failures
+- long browser tasks
+
+Lighthouse is used for local synthetic auditing. Sentry is used for
+field data from actual sessions.
+
+Search terms, author preferences, authorization headers and provider
+credentials are not attached to monitoring events.

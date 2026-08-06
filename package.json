@@ -27,6 +27,7 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
+    "@sentry/react": "^10.69.0",
     "@tanstack/react-query": "^5.86.0",
     "compression": "^1.8.1",
     "express": "^5.1.0",
@@ -39,6 +40,7 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.2",
+    "web-vitals": "^6.1.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -58,6 +60,7 @@
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.4.0",
     "jsdom": "^27.0.0",
+    "rollup-plugin-visualizer": "^7.0.1",
     "supertest": "^7.1.4",
     "tsup": "^8.5.0",
     "tsx": "^4.20.5",

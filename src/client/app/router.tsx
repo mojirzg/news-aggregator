@@ -1,18 +1,55 @@
+import { lazy, Suspense } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
-import { ForYouPage } from '@client/pages/for-you';
-import { NewsPage } from '@client/pages/news';
-import { NotFoundPage } from '@client/pages/not-found';
-import { PreferencesPage } from '@client/pages/preferences';
 import { App } from './App';
+
+const NewsPage = lazy(() =>
+  import('@client/pages/news').then((module) => ({
+    default: module.NewsPage,
+  })),
+);
+
+const ForYouPage = lazy(() =>
+  import('@client/pages/for-you').then((module) => ({
+    default: module.ForYouPage,
+  })),
+);
+
+const PreferencesPage = lazy(() =>
+  import('@client/pages/preferences').then((module) => ({
+    default: module.PreferencesPage,
+  })),
+);
+
+const NotFoundPage = lazy(() =>
+  import('@client/pages/not-found').then((module) => ({
+    default: module.NotFoundPage,
+  })),
+);
+
+const page = (element: React.ReactNode) => (
+  <Suspense fallback={<div>Loading page…</div>}>{element}</Suspense>
+);
 
 export const router = createBrowserRouter([
   {
     element: <App />,
     children: [
-      { index: true, element: <NewsPage /> },
-      { path: 'for-you', element: <ForYouPage /> },
-      { path: 'preferences', element: <PreferencesPage /> },
-      { path: '*', element: <NotFoundPage /> },
+      {
+        path: '/',
+        element: page(<NewsPage />),
+      },
+      {
+        path: '/for-you',
+        element: page(<ForYouPage />),
+      },
+      {
+        path: '/preferences',
+        element: page(<PreferencesPage />),
+      },
+      {
+        path: '*',
+        element: page(<NotFoundPage />),
+      },
     ],
   },
 ]);
