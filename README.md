@@ -96,7 +96,7 @@ Server flow:
 route → controller → service → aggregator → NewsProvider → provider adapter
 ```
 
-Details and trade-offs are documented in [docs/architecture.md](docs/architecture.md) and [docs/decisions](docs/decisions).
+Details and trade-offs are documented in [docs/architecture.md](docs/architecture.md).
 
 ## Known limitations
 
