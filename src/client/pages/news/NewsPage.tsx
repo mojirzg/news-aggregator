@@ -27,8 +27,7 @@ export const NewsPage = () => {
     patchFiltersDebounced,
     cancelPendingFilterPatch,
   } = useArticleFilters();
-  const [desktopFilters, setDesktopFilters] =
-    useState<ArticleFilters>(filters);
+  const [desktopFilters, setDesktopFilters] = useState<ArticleFilters>(filters);
   const [filterDraft, setFilterDraft] = useState<ArticleFilters>(filters);
   const wasFilterDrawerOpenRef = useRef(false);
 
@@ -96,12 +95,7 @@ export const NewsPage = () => {
     setFilterDraft(nextFilters);
     setFilters(nextFilters);
     closeFilterDrawer();
-  }, [
-    cancelPendingFilterPatch,
-    closeFilterDrawer,
-    filterDraft,
-    setFilters,
-  ]);
+  }, [cancelPendingFilterPatch, closeFilterDrawer, filterDraft, setFilters]);
 
   const resetFilterDraft = useCallback(() => {
     cancelPendingFilterPatch();

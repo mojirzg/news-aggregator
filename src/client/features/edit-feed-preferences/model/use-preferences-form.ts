@@ -7,13 +7,12 @@ export const usePreferencesForm = (initial: FeedPreferences) => {
 
   useEffect(() => {
     setDraftState(initial);
-    setSaved(false);
   }, [initial]);
 
   useEffect(() => {
     if (!saved) return undefined;
-    const timer = window.setTimeout(() => setSaved(false), 2200);
-    return () => window.clearTimeout(timer);
+    const timer = setTimeout(() => setSaved(false), 2200);
+    return () => clearTimeout(timer);
   }, [saved]);
 
   const setDraft = useCallback((next: FeedPreferences) => {

@@ -76,12 +76,12 @@ export const PreferencesForm = ({
           Reset
         </Button>
         <Button type="submit">Save preferences</Button>
-        {form.saved ? (
-          <span className={styles.saved} role="status">
-            Preferences saved
-          </span>
-        ) : null}
       </div>
+      {form.saved ? (
+        <span className={styles.saved} role="status">
+          Preferences saved
+        </span>
+      ) : null}
       {validationError ? (
         <p role="alert" className={styles.error}>
           {validationError}
