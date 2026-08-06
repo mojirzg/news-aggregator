@@ -83,7 +83,8 @@ export const AuthorPreferences = ({
     (author) =>
       isAvailableForSelectedSources(author) &&
       !value.authors.some(
-        (selectedAuthor) => authorKey(selectedAuthor) === authorKey(author.name),
+        (selectedAuthor) =>
+          authorKey(selectedAuthor) === authorKey(author.name),
       ),
   );
 

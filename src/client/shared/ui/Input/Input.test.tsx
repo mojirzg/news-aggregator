@@ -50,9 +50,9 @@ describe('Input accessibility semantics', () => {
     });
 
     expect(container.querySelector('input')?.id).toBe(initialId);
-    expect(
-      container.querySelector('input')?.hasAttribute('aria-invalid'),
-    ).toBe(false);
+    expect(container.querySelector('input')?.hasAttribute('aria-invalid')).toBe(
+      false,
+    );
 
     act(() => root.unmount());
   });

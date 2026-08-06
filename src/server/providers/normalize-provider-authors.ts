@@ -36,7 +36,9 @@ const cleanByline = (value: string): string =>
     .trim();
 
 const splitByline = (value: string): string[] => {
-  const collaborationSegments = value.split(/\s+(?:and|&)\s+|\s*;\s*|\s*\|\s*/i);
+  const collaborationSegments = value.split(
+    /\s+(?:and|&)\s+|\s*;\s*|\s*\|\s*/i,
+  );
 
   return collaborationSegments.flatMap((segment) => {
     const commaSegments = segment.split(/\s*,\s*/);
@@ -48,9 +50,7 @@ const splitByline = (value: string): string[] => {
   });
 };
 
-export const normalizeProviderAuthors = (
-  value?: string | null,
-): string[] => {
+export const normalizeProviderAuthors = (value?: string | null): string[] => {
   if (!value?.trim()) {
     return [];
   }

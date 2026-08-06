@@ -1,6 +1,10 @@
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it } from 'vitest';
-import type { ArticleFilters, FeedResponse, ProviderId } from '@contracts/index';
+import type {
+  ArticleFilters,
+  FeedResponse,
+  ProviderId,
+} from '@contracts/index';
 import { collectDiscoveredAuthors } from './use-discovered-authors';
 import { feedQueryKeys } from './use-feed-query';
 

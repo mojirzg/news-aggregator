@@ -21,7 +21,9 @@ interface HookHarness {
   unmount: () => void;
 }
 
-const renderArticleFilters = (initialEntry = '/?query=existing'): HookHarness => {
+const renderArticleFilters = (
+  initialEntry = '/?query=existing',
+): HookHarness => {
   const container = document.createElement('div');
   const root: Root = createRoot(container);
   let currentController: ArticleFilterController | null = null;

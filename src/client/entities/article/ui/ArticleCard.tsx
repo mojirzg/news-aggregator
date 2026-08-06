@@ -42,9 +42,7 @@ export const ArticleCard = ({
           ))}
         </div>
         {article.authors.length > 0 ? (
-          <span className={styles.author}>
-            By {article.authors.join(', ')}
-          </span>
+          <span className={styles.author}>By {article.authors.join(', ')}</span>
         ) : null}
       </footer>
     </div>

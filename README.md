@@ -104,7 +104,7 @@ app → pages → widgets → features → entities → shared
 Server flow:
 
 ```text
-route → controller → service → aggregator → NewsProvider → provider adapter
+Express route → FeedService → NewsProvider implementations → external API
 ```
 
 Details and trade-offs are documented in [docs/architecture.md](docs/architecture.md). Measurable release evidence and the honest Lighthouse follow-up checklist are in [docs/production-readiness-validation.md](docs/production-readiness-validation.md).

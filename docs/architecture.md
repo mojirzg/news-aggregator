@@ -49,7 +49,7 @@ GET /api/feed
   → validate unified response
 ```
 
-Provider-specific query translation and response mapping are confined to each adapter. The aggregator knows only the `NewsProvider` interface.
+Provider-specific query translation and response mapping are confined to each provider implementation. `FeedService` depends only on the `NewsProvider` interface and performs provider selection, concurrent execution, failure isolation, author filtering, and final sorting.
 
 ## Author personalization
 
@@ -59,10 +59,10 @@ The preferences page reads authors from successful feed entries already cached b
 
 ## Adding a fourth provider
 
-1. Add a provider directory with config, request mapper, runtime response schema, mapper, client, adapter, and tests.
-2. Implement `NewsProvider`.
-3. Register it in `provider-registry.ts`.
-4. Extend `ProviderId` and UI metadata.
+1. Extend `providerIdSchema` in `src/contracts/provider.contract.ts` and the client provider metadata.
+2. Add a provider implementation of `NewsProvider`, including URL construction, a runtime response schema, response mapping, and tests.
+3. Add its API-key field to the server environment schema and environment loader.
+4. Register the live and mock implementations in `provider-registry.ts` and add deterministic mock articles.
 
 The aggregation algorithm does not change.
 
@@ -80,20 +80,9 @@ Vite builds the client to `dist/client`. tsup bundles the server entry to `dist/
 
 ## Performance observability
 
-The production client uses Sentry Browser Tracing for real-user
-performance monitoring.
+When `VITE_SENTRY_DSN` is present at build time, the production client initializes Sentry Browser Tracing. It records SDK-provided page-load/navigation instrumentation, JavaScript exceptions, a custom feed-loading span, and warning events for partial provider failures.
 
-Captured signals include:
-
-- Core Web Vitals: LCP, INP and CLS
-- page-load and route-navigation duration
-- `/api/feed` request latency
-- JavaScript exceptions
-- partial provider failures
-- long browser tasks
-
-Lighthouse is used for local synthetic auditing. Sentry is used for
-field data from actual sessions.
+The separate `web-vitals` integration logs CLS, FCP, INP, LCP, and TTFB to the browser console in development only; this implementation does not explicitly send those measurements to Sentry. Lighthouse remains a manual synthetic-audit tool and is not run by the application.
 
 Search terms, author preferences, authorization headers and provider
 credentials are not attached to monitoring events.

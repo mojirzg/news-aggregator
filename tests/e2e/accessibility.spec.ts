@@ -74,7 +74,9 @@ const runAxe = async (
   expect(violations, JSON.stringify(violations, null, 2)).toEqual([]);
 };
 
-test('key routes pass the automated WCAG axe gate', async ({ page }, testInfo) => {
+test('key routes pass the automated WCAG axe gate', async ({
+  page,
+}, testInfo) => {
   test.skip(
     testInfo.project.name !== 'desktop-chromium',
     'The full accessibility gate runs once in desktop Chromium.',

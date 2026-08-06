@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildNewsApiUrl } from './newsapi.provider';
-import {
-  mapNewsApiResponse,
-  newsApiResponseSchema,
-} from './newsapi.response';
+import { mapNewsApiResponse, newsApiResponseSchema } from './newsapi.response';
 import malformedTimestamp from './fixtures/malformed-timestamp.json';
 
 describe('NewsAPI adapter mapping', () => {

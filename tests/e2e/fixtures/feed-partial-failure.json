@@ -6,16 +6,12 @@
       "title": "Successful article remains visible",
       "description": "A provider failure must not erase valid results from other sources.",
       "publishedAt": "2026-08-04T12:00:00.000Z",
-      "categories": [
-        "technology"
-      ],
+      "categories": ["technology"],
       "source": {
         "id": "guardian",
         "name": "The Guardian"
       },
-      "authors": [
-        "Example Author"
-      ]
+      "authors": ["Example Author"]
     }
   ],
   "providers": [

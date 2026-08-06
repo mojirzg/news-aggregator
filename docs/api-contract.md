@@ -4,14 +4,16 @@
 
 Query parameters:
 
-| Parameter    | Type                   | Meaning                                                               |
-| ------------ | ---------------------- | --------------------------------------------------------------------- |
-| `query`      | string                 | Keyword, maximum 160 characters                                       |
-| `sourceIds`  | comma-separated enum   | `guardian`, `nyt`, `newsapi`; empty means all                         |
-| `categories` | comma-separated enum   | business, technology, science, sports, health, entertainment, general |
-| `authors`    | comma-separated string | Exact case-insensitive match against normalized canonical authors     |
-| `dateFrom`   | `YYYY-MM-DD`           | Inclusive lower bound                                                 |
-| `dateTo`     | `YYYY-MM-DD`           | Inclusive upper bound                                                 |
+| Parameter    | Type                        | Meaning                                                                                                    |
+| ------------ | --------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `query`      | string                      | Trimmed keyword, maximum 160 characters                                                                    |
+| `sourceIds`  | comma-separated or repeated | `guardian`, `nyt`, `newsapi`; omitted/empty means all                                                      |
+| `categories` | comma-separated or repeated | business, technology, science, sports, health, entertainment, general                                      |
+| `authors`    | comma-separated or repeated | Exact case-insensitive match against normalized canonical authors; each value is limited to 100 characters |
+| `dateFrom`   | `YYYY-MM-DD`                | Inclusive lower bound                                                                                      |
+| `dateTo`     | `YYYY-MM-DD`                | Inclusive upper bound; cannot precede `dateFrom`                                                           |
+
+Duplicate source, category, and author values are removed before provider execution. Unknown enum values and invalid dates return HTTP 400.
 
 Response:
 
@@ -56,6 +58,10 @@ Errors use this envelope:
   }
 }
 ```
+
+Validation errors also include a Zod-derived `error.details` object. Application-generated error envelopes include `requestId` when one is available. The rate limiter is an exception: it returns HTTP 429 with `RATE_LIMITED` and a message, but its configured response body does not include `requestId`.
+
+Successful feed responses include `Cache-Control: private, max-age=30, stale-while-revalidate=60`.
 
 ## Provider failures
 
