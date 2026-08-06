@@ -1,8 +1,7 @@
 services:
   news-aggregator:
+    image: ${NEWS_AGGREGATOR_IMAGE:-news-aggregator:local}
     build: .
-    env_file:
-      - .env
     ports:
       - '3000:3000'
     environment:

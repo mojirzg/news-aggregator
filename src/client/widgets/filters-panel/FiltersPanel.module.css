@@ -47,6 +47,9 @@
     display: none;
   }
   .header {
+    justify-content: flex-end;
+  }
+  .title {
     display: none;
   }
   .panel {

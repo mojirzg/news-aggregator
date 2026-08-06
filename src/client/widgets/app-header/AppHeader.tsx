@@ -28,6 +28,7 @@ export const AppHeader = ({
         <Button
           type="button"
           variant="ghost"
+          aria-label="Open filters"
           aria-haspopup="dialog"
           aria-expanded={filtersOpen}
           aria-controls="mobile-filter-drawer"

@@ -5,6 +5,7 @@ import {
   filtersToSearchParams,
   searchParamsToFilters,
 } from '@client/shared/lib/search-params/search-params';
+import { useDebouncedCallback } from '@client/shared/lib/hooks/use-debounced-callback';
 
 interface FilterUpdateOptions {
   replace?: boolean;
@@ -15,9 +16,10 @@ const DEFAULT_DEBOUNCE_MS = 350;
 export const useArticleFilters = (debounceMs = DEFAULT_DEBOUNCE_MS) => {
   const [searchParams, setSearchParams] = useSearchParams();
 
+  const searchParamsKey = searchParams.toString();
   const filters = useMemo(
-    () => searchParamsToFilters(searchParams),
-    [searchParams],
+    () => searchParamsToFilters(new URLSearchParams(searchParamsKey)),
+    [searchParamsKey],
   );
 
   /*
@@ -26,8 +28,6 @@ export const useArticleFilters = (debounceMs = DEFAULT_DEBOUNCE_MS) => {
    */
   const filtersRef = useRef(filters);
   filtersRef.current = filters;
-
-  const timerRef = useRef<number | null>(null);
 
   /*
    * Several rapid patches are accumulated here and
@@ -39,15 +39,6 @@ export const useArticleFilters = (debounceMs = DEFAULT_DEBOUNCE_MS) => {
     replace: true,
   });
 
-  const clearTimer = useCallback((): void => {
-    if (timerRef.current === null) {
-      return;
-    }
-
-    window.clearTimeout(timerRef.current);
-    timerRef.current = null;
-  }, []);
-
   const commitFilters = useCallback(
     (nextFilters: ArticleFilters, options?: FilterUpdateOptions): void => {
       setSearchParams(filtersToSearchParams(nextFilters), {
@@ -57,33 +48,69 @@ export const useArticleFilters = (debounceMs = DEFAULT_DEBOUNCE_MS) => {
     [setSearchParams],
   );
 
-  const cancelPendingPatch = useCallback((): void => {
-    clearTimer();
+  const commitPendingFilterPatch = useCallback((): void => {
+    const pendingPatch = pendingPatchRef.current;
+    const options = pendingOptionsRef.current;
 
     pendingPatchRef.current = {};
     pendingOptionsRef.current = {
       replace: true,
     };
-  }, [clearTimer]);
+
+    if (Object.keys(pendingPatch).length === 0) {
+      return;
+    }
+
+    commitFilters(
+      {
+        ...filtersRef.current,
+        ...pendingPatch,
+      },
+      options,
+    );
+  }, [commitFilters]);
+
+  const {
+    callback: schedulePendingFilterPatch,
+    cancel: cancelScheduledFilterPatch,
+    flush: flushScheduledFilterPatch,
+  } = useDebouncedCallback(commitPendingFilterPatch, debounceMs);
+
+  const cancelPendingFilterPatch = useCallback((): void => {
+    cancelScheduledFilterPatch();
+    pendingPatchRef.current = {};
+    pendingOptionsRef.current = {
+      replace: true,
+    };
+  }, [cancelScheduledFilterPatch]);
+
+  const flushPendingFilterPatch = useCallback((): void => {
+    flushScheduledFilterPatch();
+  }, [flushScheduledFilterPatch]);
 
   /*
-   * Full filter changes, such as Apply and Clear, should
-   * happen immediately and cancel stale queued patches.
+   * Browser navigation or any external search-param replacement invalidates
+   * a queued patch created against the previous URL state.
+   */
+  useEffect(() => {
+    cancelPendingFilterPatch();
+  }, [cancelPendingFilterPatch, searchParamsKey]);
+
+  /*
+   * Full filter changes, such as Apply and Reset, happen
+   * immediately and cancel stale queued patches first.
    */
   const setFilters = useCallback(
     (nextFilters: ArticleFilters, options?: FilterUpdateOptions): void => {
-      cancelPendingPatch();
+      cancelPendingFilterPatch();
       commitFilters(nextFilters, options);
     },
-    [cancelPendingPatch, commitFilters],
+    [cancelPendingFilterPatch, commitFilters],
   );
 
-  /*
-   * Immediate patching remains useful for normal controls.
-   */
   const patchFilters = useCallback(
     (patch: Partial<ArticleFilters>, options?: FilterUpdateOptions): void => {
-      cancelPendingPatch();
+      cancelPendingFilterPatch();
 
       commitFilters(
         {
@@ -93,34 +120,8 @@ export const useArticleFilters = (debounceMs = DEFAULT_DEBOUNCE_MS) => {
         options,
       );
     },
-    [cancelPendingPatch, commitFilters],
+    [cancelPendingFilterPatch, commitFilters],
   );
-
-  const flushDebouncedPatches = useCallback((): void => {
-    clearTimer();
-
-    const pendingPatch = pendingPatchRef.current;
-
-    pendingPatchRef.current = {};
-
-    if (Object.keys(pendingPatch).length === 0) {
-      return;
-    }
-
-    const options = pendingOptionsRef.current;
-
-    pendingOptionsRef.current = {
-      replace: true,
-    };
-
-    commitFilters(
-      {
-        ...filtersRef.current,
-        ...pendingPatch,
-      },
-      options,
-    );
-  }, [clearTimer, commitFilters]);
 
   const patchFiltersDebounced = useCallback(
     (patch: Partial<ArticleFilters>, options?: FilterUpdateOptions): void => {
@@ -135,21 +136,17 @@ export const useArticleFilters = (debounceMs = DEFAULT_DEBOUNCE_MS) => {
         };
       }
 
-      clearTimer();
-
-      timerRef.current = window.setTimeout(flushDebouncedPatches, debounceMs);
+      schedulePendingFilterPatch();
     },
-    [clearTimer, debounceMs, flushDebouncedPatches],
+    [schedulePendingFilterPatch],
   );
-
-  useEffect(() => cancelPendingPatch, [cancelPendingPatch]);
 
   return {
     filters,
     setFilters,
     patchFilters,
     patchFiltersDebounced,
-    flushDebouncedPatches,
-    cancelPendingPatch,
+    cancelPendingFilterPatch,
+    flushPendingFilterPatch,
   };
 };

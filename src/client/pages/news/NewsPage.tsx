@@ -1,13 +1,14 @@
 import type { ArticleFilters } from '@contracts/index';
 import type { AppOutletContext } from '@client/shared/lib/router/app-outlet-context';
 import { useArticleFilters } from '@client/features/filter-articles';
+import { normalizeSearchQuery } from '@client/features/search-articles';
 import {
   DesktopFilters,
   MobileFilterDrawer,
 } from '@client/widgets/filters-panel';
 import { NewsFeedContainer } from '@client/widgets/news-feed';
 import { useOutletContext } from 'react-router-dom';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import styles from './NewsPage.module.css';
 
 const emptyFilters: ArticleFilters = {
@@ -20,43 +21,98 @@ const emptyFilters: ArticleFilters = {
 export const NewsPage = () => {
   const { isFilterDrawerOpen, closeFilterDrawer } =
     useOutletContext<AppOutletContext>();
-  const { filters, setFilters } = useArticleFilters();
+  const {
+    filters,
+    setFilters,
+    patchFiltersDebounced,
+    cancelPendingFilterPatch,
+  } = useArticleFilters();
+  const [desktopFilters, setDesktopFilters] =
+    useState<ArticleFilters>(filters);
   const [filterDraft, setFilterDraft] = useState<ArticleFilters>(filters);
+  const wasFilterDrawerOpenRef = useRef(false);
+
+  useEffect(() => {
+    setDesktopFilters(filters);
+  }, [filters]);
 
   /*
-   * Every time the drawer opens, start from the current committed
-   * URL filters. Cancelled edits therefore do not survive.
+   * Start each mobile editing session from committed URL state. The guard
+   * prevents URL changes from replacing an in-progress mobile draft.
    */
   useEffect(() => {
-    if (isFilterDrawerOpen) {
+    if (isFilterDrawerOpen && !wasFilterDrawerOpenRef.current) {
+      cancelPendingFilterPatch();
       setFilterDraft(filters);
     }
-  }, [filters, isFilterDrawerOpen]);
 
-  const clearFilters = (): void => {
+    wasFilterDrawerOpenRef.current = isFilterDrawerOpen;
+  }, [cancelPendingFilterPatch, filters, isFilterDrawerOpen]);
+
+  const clearFilters = useCallback((): void => {
+    cancelPendingFilterPatch();
+    setDesktopFilters(emptyFilters);
     setFilters(emptyFilters);
-  };
+  }, [cancelPendingFilterPatch, setFilters]);
 
-  const resetSidebarFilters = (): void => {
-    setFilters({
-      ...emptyFilters,
-      query: filters.query,
-    });
-  };
+  const resetDesktopFilters = useCallback((): void => {
+    cancelPendingFilterPatch();
+    setDesktopFilters(emptyFilters);
+    setFilters(emptyFilters);
+  }, [cancelPendingFilterPatch, setFilters]);
+
+  const changeDesktopFilters = useCallback(
+    (nextFilters: ArticleFilters): void => {
+      const queryChanged = nextFilters.query !== desktopFilters.query;
+
+      setDesktopFilters(nextFilters);
+
+      if (queryChanged) {
+        patchFiltersDebounced(
+          {
+            query: normalizeSearchQuery(nextFilters.query),
+          },
+          { replace: true },
+        );
+        return;
+      }
+
+      setFilters({
+        ...nextFilters,
+        query: normalizeSearchQuery(nextFilters.query),
+      });
+    },
+    [desktopFilters.query, patchFiltersDebounced, setFilters],
+  );
 
   const applyFilters = useCallback(() => {
-    setFilters(filterDraft);
+    const nextFilters = {
+      ...filterDraft,
+      query: normalizeSearchQuery(filterDraft.query),
+    };
+
+    cancelPendingFilterPatch();
+    setDesktopFilters(nextFilters);
+    setFilterDraft(nextFilters);
+    setFilters(nextFilters);
     closeFilterDrawer();
-  }, [closeFilterDrawer, filterDraft, setFilters]);
+  }, [
+    cancelPendingFilterPatch,
+    closeFilterDrawer,
+    filterDraft,
+    setFilters,
+  ]);
 
   const resetFilterDraft = useCallback(() => {
-    setFilterDraft((current) => ({
-      query: current.query,
-      sourceIds: [],
-      categories: [],
-      authors: [],
-    }));
-  }, []);
+    cancelPendingFilterPatch();
+    setFilterDraft(emptyFilters);
+  }, [cancelPendingFilterPatch]);
+
+  const closeMobileFilters = useCallback(() => {
+    cancelPendingFilterPatch();
+    setFilterDraft(filters);
+    closeFilterDrawer();
+  }, [cancelPendingFilterPatch, closeFilterDrawer, filters]);
 
   return (
     <main id="main-content" className={styles.page}>
@@ -68,15 +124,15 @@ export const NewsPage = () => {
             onChange={setFilterDraft}
             onApply={applyFilters}
             onReset={resetFilterDraft}
-            onClose={closeFilterDrawer}
+            onClose={closeMobileFilters}
           />
         </div>
 
         <div className={styles.layout}>
           <DesktopFilters
-            filters={filters}
-            onChange={setFilters}
-            onReset={resetSidebarFilters}
+            filters={desktopFilters}
+            onChange={changeDesktopFilters}
+            onReset={resetDesktopFilters}
           />
           <div className={styles.content}>
             <NewsFeedContainer
