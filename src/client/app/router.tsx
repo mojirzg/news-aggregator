@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
 import { App } from './App';
+import { PageLoadingSkeleton } from '@client/shared/ui/PageLoadingSkeleton/PageLoadingSkeleton';
 
 const NewsPage = lazy(() =>
   import('@client/pages/news').then((module) => ({
@@ -27,7 +28,7 @@ const NotFoundPage = lazy(() =>
 );
 
 const page = (element: React.ReactNode) => (
-  <Suspense fallback={<div>Loading page…</div>}>{element}</Suspense>
+  <Suspense fallback={<PageLoadingSkeleton />}>{element}</Suspense>
 );
 
 export const router = createBrowserRouter([
@@ -36,7 +37,7 @@ export const router = createBrowserRouter([
     children: [
       {
         path: '/',
-        element: page(<NewsPage />),
+        element: <NewsPage />,
       },
       {
         path: '/for-you',
