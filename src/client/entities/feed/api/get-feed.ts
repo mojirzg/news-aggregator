@@ -6,6 +6,7 @@ import {
 } from '@contracts/index';
 import { filtersToSearchParams } from '@client/shared/lib/search-params/search-params';
 import { getJson } from '@client/shared/api';
+import { reportProviderFailures } from '@client/shared/monitoring/report-provider-failures';
 
 export const getFeed = (
   filters: ArticleFilters,
@@ -21,13 +22,15 @@ export const getFeed = (
         'feed.has_query': Boolean(filters.query?.trim()),
       },
     },
-    () => {
+    async () => {
       const query = filtersToSearchParams(filters).toString();
-      return getJson(
+      const response = await getJson(
         `/api/feed${query ? `?${query}` : ''}`,
         feedResponseSchema,
         signal,
       );
+      reportProviderFailures(response);
+      return response;
     },
   );
 };
